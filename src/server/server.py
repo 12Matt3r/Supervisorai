@@ -22,8 +22,8 @@ from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Make sure the 'src' directory is in the PYTHONPATH.
+# e.g., export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 
 # Configure comprehensive logging
 logging.basicConfig(
@@ -39,13 +39,13 @@ logger = logging.getLogger(__name__)
 try:
     from fastmcp import FastMCP
     # Import integrated components
-    from integrated_supervisor import IntegratedSupervisor, SupervisorConfig
+    from supervisor_agent.integrated_supervisor import IntegratedSupervisor, SupervisorConfig
     from supervisor_agent.core import SupervisorCore
     from supervisor_agent import (
         MonitoringRules, EscalationConfig, TaskStatus, 
         InterventionLevel, KnowledgeBaseEntry
     )
-    from minimax_agent import AgentState
+    from supervisor_agent.minimax_agent import AgentState
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -482,9 +482,13 @@ async def get_minimax_decision(
     try:
         supervisor = await get_supervisor_instance()
 
-        # In basic mode, supervisor is SupervisorCore, which has the minimax_agent
         if not hasattr(supervisor, 'minimax_agent'):
-            return json.dumps({"success": False, "error": "Minimax agent not available in the current supervisor instance."})
+            if hasattr(supervisor, 'supervisor_core') and hasattr(supervisor.supervisor_core, 'minimax_agent'):
+                 minimax_agent = supervisor.supervisor_core.minimax_agent
+            else:
+                return json.dumps({"success": False, "error": "Minimax agent not available in the current supervisor instance."})
+        else:
+            minimax_agent = supervisor.minimax_agent
 
         state = AgentState(
             quality_score=quality_score,
@@ -493,8 +497,7 @@ async def get_minimax_decision(
             task_progress=task_progress
         )
 
-        # Access the minimax_agent from the supervisor instance
-        best_action = supervisor.minimax_agent.get_best_action(state)
+        best_action = minimax_agent.get_best_action(state)
 
         return json.dumps({
             "success": True,

@@ -2,10 +2,10 @@ import unittest
 import sys
 import os
 
-# Add the parent directory to the path to allow imports from the main project
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add the 'src' directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from minimax_agent import MinimaxAgent, AgentState, Action
+from supervisor_agent.minimax_agent import MinimaxAgent, AgentState, Action
 
 class TestMinimaxAgent(unittest.TestCase):
     """Test suite for the MinimaxAgent."""
@@ -60,7 +60,6 @@ class TestMinimaxAgent(unittest.TestCase):
 
         best_action = self.minimax_agent.get_best_action(medium_state)
 
-        # In our simplified model, CORRECTION often yields a better future state
         self.assertEqual(best_action, Action.CORRECT, "Should CORRECT on a medium state.")
 
     def test_warn_on_resource_issue(self):
@@ -77,9 +76,6 @@ class TestMinimaxAgent(unittest.TestCase):
 
         best_action = self.minimax_agent.get_best_action(resource_issue_state)
 
-        # The evaluation function penalizes resource usage, so it might not just ALLOW.
-        # Depending on the weights, WARN could be a possible outcome.
-        # This test is more about seeing a reasonable, non-ALLOW action.
         self.assertIn(best_action, [Action.WARN, Action.ALLOW], "Should WARN or ALLOW on a resource issue state.")
 
 

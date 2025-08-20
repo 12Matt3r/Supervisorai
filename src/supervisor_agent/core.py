@@ -18,9 +18,9 @@ from . import (
     ConfidenceLevel,
     InterventionRequired
 )
-from .quality_analyzer import QualityAnalyzer
-from .pattern_learner import PatternLearner
-from .audit_logger import AuditLogger
+from monitoring.quality_analyzer import QualityAnalyzer
+from monitoring.pattern_learner import PatternLearner
+from reporting.audit_logger import AuditLogger
 from .minimax_agent import MinimaxAgent, AgentState, Action
 
 
@@ -35,7 +35,7 @@ class SupervisorCore:
         self.quality_analyzer = QualityAnalyzer()
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl"))
-        self.minimax_agent = MinimaxAgent(depth=2) # Initialize the MiniMax agent
+        self.minimax_agent = MinimaxAgent(depth=2)
         
         # State management
         self.active_tasks: Dict[str, AgentTask] = {}
@@ -159,24 +159,28 @@ class SupervisorCore:
     ) -> Dict[str, Any]:
         """Determine if intervention is needed using the Minimax agent."""
         
-        # 1. Create the current state object for the Minimax agent
+        # HACK: Assume a default value for max_token_threshold if not available
+        max_tokens = getattr(self.monitoring_rules, 'max_token_threshold', 10000)
+        if max_tokens == 0: max_tokens = 10000
+
+        # Create the current state object for the Minimax agent
         current_state = AgentState(
             quality_score=quality_metrics.confidence_score,
-            error_count=len([i for i in task.interventions if i["level"] == "ESCALATION"]), # Simple error count
-            resource_usage=task.resource_usage.token_count / self.monitoring_rules.max_token_threshold,
-            task_progress=len(task.outputs) / 10.0 # Estimate progress based on number of outputs
+            error_count=len([i for i in task.interventions if i["level"] == "ESCALATION"]),
+            resource_usage=task.resource_usage.token_count / max_tokens,
+            task_progress=len(task.outputs) / 10.0  # Simple progress estimation
         )
 
-        # 2. Get the best action from the Minimax agent
+        # Get the best action from the Minimax agent
         best_action = self.minimax_agent.get_best_action(current_state)
 
-        # 3. Translate the action into the format expected by the system
+        # Translate the action into the format expected by the system
         intervention_required = True
         reason = f"Minimax agent decided action: {best_action.value}"
-        confidence = 1.0 # The agent is confident in its choice
+        confidence = 1.0  # The agent is confident in its choice
 
         level_map = {
-            Action.ALLOW: None, # No intervention
+            Action.ALLOW: None,
             Action.WARN: InterventionLevel.WARNING,
             Action.CORRECTION: InterventionLevel.CORRECTION,
             Action.ESCALATE: InterventionLevel.ESCALATION,
@@ -191,7 +195,7 @@ class SupervisorCore:
             "level": level.value if level else None,
             "reason": reason,
             "confidence": confidence,
-            "pattern_match": None # Pattern matching is not used by minimax
+            "pattern_match": None  # Pattern matching is not used by minimax
         }
 
     async def _apply_intervention(

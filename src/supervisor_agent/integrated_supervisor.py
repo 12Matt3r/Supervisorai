@@ -22,7 +22,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 # Import all subsystems
-from .monitoring import (
+from monitoring import (
     MonitoringEngine,
     TaskCompletionMonitor,
     InstructionAdherenceMonitor,
@@ -32,24 +32,24 @@ from .monitoring import (
     ConfidenceScorer
 )
 
-from .error_handling.error_handling_system import SupervisorErrorHandlingSystem
-from .error_handling.error_types import SupervisorError, ErrorType
+from error_handling.error_handling_system import SupervisorErrorHandlingSystem
+from error_handling.error_types import SupervisorError, ErrorType
 
-from .reporting.integrated_system import (
+from reporting.integrated_system import (
     IntegratedReportingConfig,
     SystemIntegrationEvent,
     EventRouter,
     BackgroundProcessor
 )
 
-from .reporting.alert_system import ComprehensiveAlertSystem
-from .reporting.report_generator import PeriodicReportGenerator
-from .reporting.audit_system import ComprehensiveAuditSystem, AuditEventType, AuditLevel
-from .reporting.confidence_system import ConfidenceReportingSystem
-from .reporting.pattern_system import ComprehensivePatternSystem
-from .reporting.dashboard_system import ComprehensiveDashboardSystem
+from reporting.alert_system import ComprehensiveAlertSystem
+from reporting.report_generator import PeriodicReportGenerator
+from reporting.audit_system import ComprehensiveAuditSystem, AuditEventType, AuditLevel
+from reporting.confidence_system import ConfidenceReportingSystem
+from reporting.pattern_system import ComprehensivePatternSystem
+from reporting.dashboard_system import ComprehensiveDashboardSystem
 
-from .supervisor_agent.core import SupervisorCore
+from supervisor_agent.core import SupervisorCore
 
 @dataclass
 class SupervisorConfig:

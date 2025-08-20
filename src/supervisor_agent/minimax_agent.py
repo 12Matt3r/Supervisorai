@@ -127,16 +127,6 @@ class MinimaxAgent:
             return max_eval
         else: # Minimizing player (simulating the "environment" or "problem")
             min_eval = math.inf
-            # The minimizing player's turn simulates the agent making a mistake or things going wrong.
-            # Here, we'll just transition to the next state without a specific "move" from the minimizer.
-            # A more complex model could have the minimizer choose to introduce errors.
-            # For now, we assume the minimizer's turn is just the consequence of the maximizer's action.
-            # This is a simplification; we're essentially looking ahead at the consequences of our actions.
-
-            # Since we don't have a separate minimizer move, we'll just pass the turn.
-            # A better approach would be to have the minimizer choose a "worst-case" next state.
-            # Let's simulate that by assuming the next natural state is slightly worse.
-
             next_natural_state = state
             next_natural_state.quality_score *= 0.95 # Simulate slight decay or difficulty
 
