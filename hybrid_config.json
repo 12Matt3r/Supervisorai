@@ -1,0 +1,272 @@
+{
+  "name": "Browser Extension Hybrid Architecture Configuration",
+  "version": "2.0.0",
+  "description": "Configuration examples and defaults for different deployment scenarios",
+  
+  "defaultSettings": {
+    "deploymentMode": "auto",
+    "autoDetectEndpoints": true,
+    "enableOfflineMode": true,
+    "interventionThreshold": 0.5,
+    "enableNotifications": true,
+    "enableAutoCorrection": true,
+    "supervisorServerUrl": "ws://localhost:8765",
+    "cloudEndpointUrl": null,
+    "syncSettings": {
+      "syncInterval": 5,
+      "maxOfflineData": 1000,
+      "retryAttempts": 3,
+      "batchSize": 50
+    },
+    "authSettings": {
+      "enableWebAppAuth": true,
+      "enableExtensionAuth": true,
+      "tokenRefreshInterval": 3600,
+      "maxTokenAge": 86400
+    }
+  },
+  
+  "deploymentScenarios": {
+    "development": {
+      "description": "Local development with supervisor MCP server",
+      "settings": {
+        "deploymentMode": "local",
+        "supervisorServerUrl": "ws://localhost:8765",
+        "enableOfflineMode": true,
+        "autoDetectEndpoints": false,
+        "interventionThreshold": 0.3
+      }
+    },
+    
+    "production_webapp": {
+      "description": "Production web application with Supabase backend",
+      "settings": {
+        "deploymentMode": "cloud",
+        "cloudEndpointUrl": "wss://your-project.supabase.co/functions/v1/websocket-handler",
+        "enableOfflineMode": true,
+        "autoDetectEndpoints": true,
+        "authSettings": {
+          "enableWebAppAuth": true,
+          "enableExtensionAuth": false
+        }
+      }
+    },
+    
+    "hybrid_enterprise": {
+      "description": "Enterprise setup with both local and cloud services",
+      "settings": {
+        "deploymentMode": "hybrid",
+        "supervisorServerUrl": "ws://internal-supervisor:8765",
+        "cloudEndpointUrl": "wss://enterprise.supabase.co/functions/v1/websocket-handler",
+        "enableOfflineMode": true,
+        "syncSettings": {
+          "syncInterval": 2,
+          "maxOfflineData": 5000,
+          "batchSize": 100
+        }
+      }
+    },
+    
+    "edge_computing": {
+      "description": "Edge computing scenario with local-first approach",
+      "settings": {
+        "deploymentMode": "auto",
+        "supervisorServerUrl": "ws://edge-node:8765",
+        "cloudEndpointUrl": "wss://backup-cloud.supabase.co/functions/v1/websocket-handler",
+        "enableOfflineMode": true,
+        "endpoints": {
+          "local": { "priority": 1, "timeout": 5000 },
+          "cloud": { "priority": 2, "timeout": 10000 }
+        }
+      }
+    }
+  },
+  
+  "platformConfigurations": {
+    "minimax": {
+      "name": "MiniMax Platform",
+      "selectors": {
+        "input": "[data-testid='chat-input'], .chat-input, #chat-input",
+        "messages": ".message, .chat-message",
+        "agent": ".ai-message, .assistant-message"
+      },
+      "cloudEndpoint": "wss://minimax.supabase.co/functions/v1/websocket-handler"
+    },
+    
+    "chatgpt": {
+      "name": "ChatGPT",
+      "selectors": {
+        "input": "#prompt-textarea, [data-id='root'] textarea",
+        "messages": ".message, .conversation-turn",
+        "agent": "[data-message-author-role='assistant']"
+      },
+      "cloudEndpoint": "wss://chatgpt-supervisor.supabase.co/functions/v1/websocket-handler"
+    },
+    
+    "claude": {
+      "name": "Claude",
+      "selectors": {
+        "input": "textarea[placeholder*='message'], .claude-input",
+        "messages": ".message",
+        "agent": "[data-role='assistant']"
+      },
+      "cloudEndpoint": "wss://claude-supervisor.supabase.co/functions/v1/websocket-handler"
+    },
+    
+    "generic": {
+      "name": "Generic AI Platform",
+      "selectors": {
+        "input": "textarea[placeholder*='chat'], textarea[placeholder*='message'], input[placeholder*='ask']",
+        "messages": ".message, .chat-message, .conversation-item",
+        "agent": ".ai-message, .bot-message, .assistant-message, [role='assistant']"
+      }
+    }
+  },
+  
+  "endpointExamples": {
+    "local": {
+      "development": "ws://localhost:8765",
+      "docker": "ws://supervisor-container:8765",
+      "kubernetes": "ws://supervisor-service:8765",
+      "custom": "ws://your-server:8765"
+    },
+    
+    "cloud": {
+      "supabase": "wss://your-project.supabase.co/functions/v1/websocket-handler",
+      "vercel": "wss://your-project.vercel.app/api/websocket",
+      "netlify": "wss://your-project.netlify.app/.netlify/functions/websocket",
+      "custom": "wss://your-domain.com/ws/supervisor"
+    }
+  },
+  
+  "messagingConfiguration": {
+    "retryPolicy": {
+      "maxRetries": 3,
+      "initialDelay": 1000,
+      "maxDelay": 10000,
+      "backoffMultiplier": 2
+    },
+    
+    "rateLimit": {
+      "maxMessagesPerSecond": 10,
+      "burstLimit": 50,
+      "windowSize": 1000
+    },
+    
+    "messageTypes": {
+      "USER_INPUT_ANALYSIS": {
+        "priority": "high",
+        "timeout": 5000,
+        "retries": 2
+      },
+      "AGENT_MESSAGE_ANALYSIS": {
+        "priority": "high", 
+        "timeout": 5000,
+        "retries": 2
+      },
+      "EXTENSION_REGISTER": {
+        "priority": "critical",
+        "timeout": 10000,
+        "retries": 5
+      },
+      "OFFLINE_DATA_SYNC": {
+        "priority": "low",
+        "timeout": 30000,
+        "retries": 3
+      }
+    }
+  },
+  
+  "authenticationExamples": {
+    "webapp_session": {
+      "description": "Extract authentication from web app session",
+      "method": "cookie_extraction",
+      "cookiePatterns": [
+        "auth_token",
+        "session_token", 
+        "supabase_auth_token",
+        "access_token"
+      ]
+    },
+    
+    "extension_auth": {
+      "description": "Generate extension-specific authentication",
+      "method": "extension_generated",
+      "parameters": {
+        "extensionId": "chrome.runtime.id",
+        "timestamp": "Date.now()",
+        "nonce": "random_string"
+      }
+    },
+    
+    "oauth_flow": {
+      "description": "OAuth authentication flow",
+      "method": "oauth",
+      "providers": ["google", "github", "custom"]
+    }
+  },
+  
+  "troubleshootingGuide": {
+    "connectionIssues": {
+      "localConnectionFailed": {
+        "description": "Cannot connect to local supervisor server",
+        "solutions": [
+          "Verify supervisor server is running on specified port",
+          "Check firewall settings allow WebSocket connections",
+          "Ensure correct URL format (ws://localhost:8765)",
+          "Try different port if default is occupied"
+        ]
+      },
+      
+      "cloudConnectionFailed": {
+        "description": "Cannot connect to cloud services",
+        "solutions": [
+          "Verify internet connectivity",
+          "Check cloud endpoint URL is correct",
+          "Ensure CORS settings allow extension origin",
+          "Verify Supabase functions are deployed and active"
+        ]
+      }
+    },
+    
+    "authenticationIssues": {
+      "authFailed": {
+        "description": "Authentication failed",
+        "solutions": [
+          "Clear extension storage and re-authenticate",
+          "Check web app session is active",
+          "Verify authentication tokens are not expired",
+          "Try manual authentication via popup"
+        ]
+      }
+    },
+    
+    "syncIssues": {
+      "dataNotSyncing": {
+        "description": "Offline data not synchronizing",
+        "solutions": [
+          "Check connection status in popup",
+          "Try force sync button",
+          "Clear offline cache if corrupted",
+          "Verify supervisor service is accepting sync requests"
+        ]
+      }
+    }
+  },
+  
+  "performanceOptimization": {
+    "recommendations": {
+      "connectionPooling": "Reuse WebSocket connections where possible",
+      "messageQueuing": "Batch messages to reduce connection overhead",
+      "cacheManagement": "Regularly clean old cached data",
+      "errorHandling": "Implement exponential backoff for failed requests"
+    },
+    
+    "limits": {
+      "maxActiveConnections": 2,
+      "maxQueuedMessages": 100,
+      "maxOfflineDataAge": 86400000,
+      "maxRetryAttempts": 3
+    }
+  }
+}

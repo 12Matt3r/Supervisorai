@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AI Supervisor - Activity Log</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f8f9fa;
+      color: #333;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e9ecef;
+    }
+    
+    .header h1 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 24px;
+    }
+    
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .filter-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    select, button {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    button {
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    
+    button:hover {
+      background: #0056b3;
+    }
+    
+    .log-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .log-entry {
+      padding: 15px 20px;
+      border-bottom: 1px solid #f1f3f4;
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    
+    .log-entry.intervention {
+      background: #fff5f5;
+      border-left: 4px solid #ff6b35;
+    }
+    
+    .log-entry.warning {
+      background: #fffbf0;
+      border-left: 4px solid #ffc107;
+    }
+    
+    .log-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    
+    .log-icon.intervention { background: #ff6b35; }
+    .log-icon.analysis { background: #4285f4; }
+    .log-icon.warning { background: #ffc107; }
+    
+    .log-content {
+      flex: 1;
+    }
+    
+    .log-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .log-time {
+      color: #6c757d;
+      font-size: 12px;
+    }
+    
+    .log-type {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    
+    .log-message {
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    
+    .log-details {
+      font-size: 13px;
+      color: #666;
+      background: #f8f9fa;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+    
+    .drift-score {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    .drift-score.high {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .drift-score.medium {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+    
+    .drift-score.low {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+    
+    .tab-info {
+      background: #e3f2fd;
+      padding: 10px 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 AI Supervisor Activity Log</h1>
+    <p>Detailed monitoring and intervention history</p>
+  </div>
+  
+  <div class="tab-info" id="tabInfo">
+    Loading tab information...
+  </div>
+  
+  <div class="controls">
+    <div class="filter-group">
+      <select id="typeFilter">
+        <option value="all">All Activities</option>
+        <option value="intervention">Interventions Only</option>
+        <option value="warning">Warnings Only</option>
+        <option value="analysis">Analysis Only</option>
+      </select>
+      
+      <select id="timeFilter">
+        <option value="all">All Time</option>
+        <option value="hour">Last Hour</option>
+        <option value="day">Last 24 Hours</option>
+        <option value="week">Last Week</option>
+      </select>
+    </div>
+    
+    <div>
+      <button onclick="exportLog()">Export CSV</button>
+      <button onclick="clearLog()" style="background: #dc3545;">Clear Log</button>
+      <button onclick="refreshLog()">Refresh</button>
+    </div>
+  </div>
+  
+  <div class="log-container" id="logContainer">
+    <div class="empty-state">
+      Loading activity log...
+    </div>
+  </div>
+  
+  <script>
+    let allLogEntries = [];
+    let currentTabId = null;
+    
+    async function init() {
+      // Get current tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        currentTabId = tabs[0].id;
+        document.getElementById('tabInfo').innerHTML = `
+          <strong>Monitoring:</strong> ${tabs[0].title} <br>
+          <strong>URL:</strong> ${tabs[0].url}
+        `;
+      }
+      
+      await loadLog();
+      setupEventListeners();
+    }
+    
+    async function loadLog() {
+      try {
+        const result = await chrome.storage.local.get(['interactionLog']);
+        allLogEntries = result.interactionLog || [];
+        
+        // Filter by current tab if available
+        if (currentTabId) {
+          allLogEntries = allLogEntries.filter(entry => entry.tabId === currentTabId);
+        }
+        
+        // Sort by timestamp (newest first)
+        allLogEntries.sort((a, b) => b.timestamp - a.timestamp);
+        
+        renderLog();
+      } catch (error) {
+        console.error('Failed to load log:', error);
+        document.getElementById('logContainer').innerHTML = `
+          <div class="empty-state">
+            Failed to load activity log: ${error.message}
+          </div>
+        `;
+      }
+    }
+    
+    function renderLog() {
+      const container = document.getElementById('logContainer');
+      
+      // Apply filters
+      let filteredEntries = filterEntries(allLogEntries);
+      
+      if (filteredEntries.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            No activities match the current filters.
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = filteredEntries.map(entry => {
+        const time = new Date(entry.timestamp).toLocaleString();
+        const relativeTime = getRelativeTime(entry.timestamp);
+        
+        let iconType = 'analysis';
+        let entryClass = '';
+        let typeLabel = 'Analysis';
+        let driftScoreHtml = '';
+        
+        if (entry.type === 'intervention') {
+          iconType = 'intervention';
+          entryClass = 'intervention';
+          typeLabel = `${entry.severity || 'Medium'} Intervention`.toUpperCase();
+        } else if (entry.driftScore > 0.6) {
+          iconType = 'warning';
+          entryClass = 'warning';
+          typeLabel = 'High Drift Warning';
+        } else if (entry.driftScore > 0.3) {
+          iconType = 'warning';
+          typeLabel = 'Moderate Drift';
+        }
+        
+        if (typeof entry.driftScore === 'number') {
+          const score = Math.round(entry.driftScore * 100);
+          const scoreClass = score > 60 ? 'high' : score > 30 ? 'medium' : 'low';
+          driftScoreHtml = `<span class="drift-score ${scoreClass}">${score}% drift</span>`;
+        }
+        
+        const iconSymbol = iconType === 'intervention' ? '⚠' : 
+                          iconType === 'warning' ? '⚡' : '📊';
+        
+        return `
+          <div class="log-entry ${entryClass}">
+            <div class="log-icon ${iconType}">${iconSymbol}</div>
+            <div class="log-content">
+              <div class="log-meta">
+                <div>
+                  <span class="log-type">${typeLabel}</span>
+                  ${driftScoreHtml}
+                </div>
+                <div class="log-time" title="${time}">${relativeTime}</div>
+              </div>
+              
+              <div class="log-message">
+                ${getLogMessage(entry)}
+              </div>
+              
+              ${getLogDetails(entry)}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function getLogMessage(entry) {
+      if (entry.type === 'intervention') {
+        return entry.message?.notification || 'Task coherence intervention triggered';
+      }
+      
+      if (entry.issues && entry.issues.length > 0) {
+        return entry.issues[0];
+      }
+      
+      if (entry.driftScore > 0.6) {
+        return 'High task drift detected in agent response';
+      } else if (entry.driftScore > 0.3) {
+        return 'Moderate task drift detected in agent response';
+      }
+      
+      return 'Agent response analyzed for task coherence';
+    }
+    
+    function getLogDetails(entry) {
+      const details = [];
+      
+      if (entry.issues && entry.issues.length > 0) {
+        details.push(`<strong>Issues:</strong> ${entry.issues.join(', ')}`);
+      }
+      
+      if (entry.message && entry.message.suggestion) {
+        details.push(`<strong>Suggestion:</strong> ${entry.message.suggestion}`);
+      }
+      
+      if (entry.content && entry.content.length > 0) {
+        const preview = entry.content.length > 100 ? 
+          entry.content.substring(0, 100) + '...' : entry.content;
+        details.push(`<strong>Content:</strong> "${preview}"`);
+      }
+      
+      if (details.length > 0) {
+        return `<div class="log-details">${details.join('<br>')}</div>`;
+      }
+      
+      return '';
+    }
+    
+    function filterEntries(entries) {
+      const typeFilter = document.getElementById('typeFilter').value;
+      const timeFilter = document.getElementById('timeFilter').value;
+      
+      let filtered = entries;
+      
+      // Type filter
+      if (typeFilter !== 'all') {
+        filtered = filtered.filter(entry => {
+          if (typeFilter === 'intervention') return entry.type === 'intervention';
+          if (typeFilter === 'warning') return entry.driftScore > 0.3;
+          if (typeFilter === 'analysis') return entry.type !== 'intervention' && entry.driftScore <= 0.3;
+          return true;
+        });
+      }
+      
+      // Time filter
+      if (timeFilter !== 'all') {
+        const now = Date.now();
+        const timeRanges = {
+          hour: 60 * 60 * 1000,
+          day: 24 * 60 * 60 * 1000,
+          week: 7 * 24 * 60 * 60 * 1000
+        };
+        
+        const cutoff = now - timeRanges[timeFilter];
+        filtered = filtered.filter(entry => entry.timestamp > cutoff);
+      }
+      
+      return filtered;
+    }
+    
+    function getRelativeTime(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (days > 0) return `${days}d ago`;
+      if (hours > 0) return `${hours}h ago`;
+      if (minutes > 0) return `${minutes}m ago`;
+      return 'Just now';
+    }
+    
+    function setupEventListeners() {
+      document.getElementById('typeFilter').addEventListener('change', renderLog);
+      document.getElementById('timeFilter').addEventListener('change', renderLog);
+    }
+    
+    async function refreshLog() {
+      await loadLog();
+    }
+    
+    function exportLog() {
+      const filtered = filterEntries(allLogEntries);
+      
+      const csvContent = 'data:text/csv;charset=utf-8,' + 
+        'Timestamp,Type,Drift Score,Message,Issues\n' +
+        filtered.map(entry => {
+          const timestamp = new Date(entry.timestamp).toISOString();
+          const type = entry.type || 'analysis';
+          const score = entry.driftScore || 0;
+          const message = getLogMessage(entry).replace(/"/g, '""');
+          const issues = (entry.issues || []).join('; ').replace(/"/g, '""');
+          
+          return `"${timestamp}","${type}",${score},"${message}","${issues}"`;
+        }).join('\n');
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `ai-supervisor-log-${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    async function clearLog() {
+      if (confirm('Are you sure you want to clear all activity logs? This cannot be undone.')) {
+        await chrome.storage.local.remove(['interactionLog']);
+        allLogEntries = [];
+        renderLog();
+        alert('Activity log cleared successfully.');
+      }
+    }
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+{
+  "name": "AI Agent Supervisor",
+  "version": "1.0.0",
+  "description": "Monitor and supervise AI agents across web platforms with hybrid architecture support",
+  "manifest_version": 3,
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "webNavigation",
+    "tabs",
+    "background"
+  ],
+  "host_permissions": [
+    "https://*.openai.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://*.space.minimax.io/*",
+    "https://*.minimax.chat/*",
+    "http://localhost:*/*",
+    "ws://localhost:*/*",
+    "wss://*.space.minimax.io/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": [
+      "https://*.openai.com/*",
+      "https://chat.openai.com/*",
+      "https://claude.ai/*",
+      "https://gemini.google.com/*",
+      "https://*.minimax.chat/*"
+    ],
+    "js": ["content.js"],
+    "run_at": "document_start"
+  }],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Agent Supervisor"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "web_accessible_resources": [{
+    "resources": ["injector.js"],
+    "matches": ["<all_urls>"]
+  }]
+}

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4285f4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34a853;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="58" fill="url(#grad1)" stroke="white" stroke-width="4"/>
+  
+  <!-- Robot head outline -->
+  <rect x="32" y="28" width="64" height="52" rx="12" fill="white" stroke="#333" stroke-width="2"/>
+  
+  <!-- Eyes -->
+  <circle cx="48" cy="48" r="6" fill="#4285f4"/>
+  <circle cx="80" cy="48" r="6" fill="#4285f4"/>
+  
+  <!-- Mouth -->
+  <rect x="54" y="60" width="20" height="4" rx="2" fill="#333"/>
+  
+  <!-- Antenna -->
+  <line x1="64" y1="28" x2="64" y2="20" stroke="#333" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="64" cy="18" r="3" fill="#ff6b35"/>
+  
+  <!-- Supervisor badge -->
+  <circle cx="96" cy="96" r="16" fill="#ff6b35" stroke="white" stroke-width="2"/>
+  <text x="96" y="101" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="bold">S</text>
+  
+  <!-- Warning indicators -->
+  <path d="M20 100 L28 84 L36 100 Z" fill="#ffc107" stroke="white" stroke-width="1"/>
+  <circle cx="28" cy="94" r="1.5" fill="#333"/>
+  <rect x="27" y="88" width="2" height="4" fill="#333"/>
+</svg>
