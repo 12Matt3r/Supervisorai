@@ -22,7 +22,7 @@ from monitoring.quality_analyzer import QualityAnalyzer
 from monitoring.pattern_learner import PatternLearner
 from reporting.audit_logger import AuditLogger
 from reporting.audit_system import AuditEventType, AuditLevel
-from .minimax_agent import MinimaxAgent, AgentState, Action
+from .expectimax_agent import ExpectimaxAgent, AgentState, Action
 
 
 class SupervisorCore:
@@ -36,7 +36,7 @@ class SupervisorCore:
         self.quality_analyzer = QualityAnalyzer()
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl")) # Legacy logger
-        self.minimax_agent = MinimaxAgent(depth=2)
+        self.expectimax_agent = ExpectimaxAgent(depth=2)
         self.audit_system = audit_system # New, more comprehensive audit system
         
         # State management
@@ -136,7 +136,7 @@ class SupervisorCore:
             self.audit_system.log(
                 event_type=AuditEventType.DECISION_MADE,
                 level=AuditLevel.INFO,
-                source="MinimaxSupervisor",
+                source="ExpectimaxSupervisor",
                 message=f"Intervention decision: {intervention_result.get('action', 'NONE')}",
                 metadata={
                     "task_id": task_id,
@@ -185,7 +185,7 @@ class SupervisorCore:
             task_progress=len(task.outputs) / 10.0
         )
 
-        decision_data = self.minimax_agent.get_best_action(current_state)
+        decision_data = self.expectimax_agent.get_best_action(current_state)
         best_action = decision_data["best_action"]
 
         intervention_required = True
