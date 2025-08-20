@@ -135,19 +135,29 @@ class MinimaxAgent:
             return min_eval
 
 
-    def get_best_action(self, state: AgentState) -> Action:
+    def get_best_action(self, state: AgentState) -> Dict[str, Any]:
         """
         Finds the best action to take from the current state.
+        Returns a dictionary with the best action, its score, and all considered actions.
         """
         best_score = -math.inf
         best_action = None
+        considered_actions = []
 
         for action in self._get_possible_actions(state):
             new_state = self._apply_action(state, action)
-            score = self.minimax(new_state, self.depth, False) # Start with the minimizing player's turn
+            score = self.minimax(new_state, self.depth, False)
+            considered_actions.append({"action": action.value, "score": score})
 
             if score > best_score:
                 best_score = score
                 best_action = action
 
-        return best_action or Action.ALLOW
+        best_action = best_action or Action.ALLOW
+
+        return {
+            "best_action": best_action,
+            "best_score": best_score,
+            "considered_actions": sorted(considered_actions, key=lambda x: x['score'], reverse=True),
+            "state_evaluated": state
+        }

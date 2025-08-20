@@ -238,8 +238,13 @@ class IntegratedSupervisor:
     
     def _initialize_subsystems(self):
         """Initialize all supervisor subsystems"""
+
+        # Reporting system must be initialized first to get audit_system
+        if self.config.reporting_enabled:
+            self._initialize_reporting_system()
+
         # Core supervisor
-        self.supervisor_core = SupervisorCore()
+        self.supervisor_core = SupervisorCore(audit_system=getattr(self, 'audit_system', None))
         
         # Monitoring system
         if self.config.monitoring_enabled:

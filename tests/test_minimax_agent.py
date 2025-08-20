@@ -26,7 +26,8 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.8
         )
 
-        best_action = self.minimax_agent.get_best_action(good_state)
+        decision = self.minimax_agent.get_best_action(good_state)
+        best_action = decision["best_action"]
 
         self.assertEqual(best_action, Action.ALLOW, "Should ALLOW on a good state.")
 
@@ -42,7 +43,8 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.1
         )
 
-        best_action = self.minimax_agent.get_best_action(bad_state)
+        decision = self.minimax_agent.get_best_action(bad_state)
+        best_action = decision["best_action"]
 
         self.assertEqual(best_action, Action.ESCALATE, "Should ESCALATE on a bad state.")
 
@@ -58,7 +60,8 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.5
         )
 
-        best_action = self.minimax_agent.get_best_action(medium_state)
+        decision = self.minimax_agent.get_best_action(medium_state)
+        best_action = decision["best_action"]
 
         self.assertEqual(best_action, Action.CORRECT, "Should CORRECT on a medium state.")
 
@@ -74,7 +77,8 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.7
         )
 
-        best_action = self.minimax_agent.get_best_action(resource_issue_state)
+        decision = self.minimax_agent.get_best_action(resource_issue_state)
+        best_action = decision["best_action"]
 
         self.assertIn(best_action, [Action.WARN, Action.ALLOW], "Should WARN or ALLOW on a resource issue state.")
 

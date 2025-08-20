@@ -21,21 +21,23 @@ from . import (
 from monitoring.quality_analyzer import QualityAnalyzer
 from monitoring.pattern_learner import PatternLearner
 from reporting.audit_logger import AuditLogger
+from reporting.audit_system import AuditEventType, AuditLevel
 from .minimax_agent import MinimaxAgent, AgentState, Action
 
 
 class SupervisorCore:
     """Core supervisor engine for agent monitoring and intervention"""
 
-    def __init__(self, data_dir: str = "./supervisor_data"):
+    def __init__(self, data_dir: str = "./supervisor_data", audit_system: Optional[Any] = None):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
         
         # Core components
         self.quality_analyzer = QualityAnalyzer()
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
-        self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl"))
+        self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl")) # Legacy logger
         self.minimax_agent = MinimaxAgent(depth=2)
+        self.audit_system = audit_system # New, more comprehensive audit system
         
         # State management
         self.active_tasks: Dict[str, AgentTask] = {}
@@ -129,6 +131,20 @@ class SupervisorCore:
         
         task.outputs.append(output_record)
         
+        # Log the enhanced decision data to the audit system
+        if self.audit_system:
+            self.audit_system.log(
+                event_type=AuditEventType.DECISION_MADE,
+                level=AuditLevel.INFO,
+                source="MinimaxSupervisor",
+                message=f"Intervention decision: {intervention_result.get('action', 'NONE')}",
+                metadata={
+                    "task_id": task_id,
+                    "agent_name": task.agent_name,
+                    "decision_details": intervention_result
+                }
+            )
+
         # Apply intervention if needed
         if intervention_result["intervention_required"]:
             await self._apply_intervention(task, intervention_result)
@@ -159,25 +175,21 @@ class SupervisorCore:
     ) -> Dict[str, Any]:
         """Determine if intervention is needed using the Minimax agent."""
         
-        # HACK: Assume a default value for max_token_threshold if not available
         max_tokens = getattr(self.monitoring_rules, 'max_token_threshold', 10000)
         if max_tokens == 0: max_tokens = 10000
 
-        # Create the current state object for the Minimax agent
         current_state = AgentState(
             quality_score=quality_metrics.confidence_score,
             error_count=len([i for i in task.interventions if i["level"] == "ESCALATION"]),
             resource_usage=task.resource_usage.token_count / max_tokens,
-            task_progress=len(task.outputs) / 10.0  # Simple progress estimation
+            task_progress=len(task.outputs) / 10.0
         )
 
-        # Get the best action from the Minimax agent
-        best_action = self.minimax_agent.get_best_action(current_state)
+        decision_data = self.minimax_agent.get_best_action(current_state)
+        best_action = decision_data["best_action"]
 
-        # Translate the action into the format expected by the system
         intervention_required = True
-        reason = f"Minimax agent decided action: {best_action.value}"
-        confidence = 1.0  # The agent is confident in its choice
+        reason = f"Minimax agent chose {best_action.value} with score {decision_data['best_score']:.2f}"
 
         level_map = {
             Action.ALLOW: None,
@@ -190,12 +202,17 @@ class SupervisorCore:
         if level is None:
             intervention_required = False
 
+        # Return the enhanced decision data
         return {
             "intervention_required": intervention_required,
             "level": level.value if level else None,
             "reason": reason,
-            "confidence": confidence,
-            "pattern_match": None  # Pattern matching is not used by minimax
+            "confidence": decision_data['best_score'],
+            "action": best_action.value,
+            "minimax_details": {
+                "considered_actions": decision_data['considered_actions'],
+                "state_evaluated": decision_data['state_evaluated'].__dict__
+            }
         }
 
     async def _apply_intervention(

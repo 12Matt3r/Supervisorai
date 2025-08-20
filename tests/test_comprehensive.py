@@ -57,6 +57,10 @@ class SupervisorTestSuite:
             shutil.rmtree(self.temp_dir)
             logger.info("Test environment cleaned up")
     
+    def assertTrue(self, expr, msg=None):
+        if not expr:
+            raise AssertionError(msg or "Assertion failed")
+
     def record_test_result(self, test_name: str, passed: bool, details: str = "", execution_time: float = 0.0):
         """Record test result"""
         result = {
@@ -105,6 +109,58 @@ class SupervisorTestSuite:
                 execution_time
             )
             
+        except Exception as e:
+            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            self.record_test_result(test_name, False, f"Error: {str(e)}", execution_time)
+
+    async def test_decision_logging(self):
+        """Test that Minimax agent decisions are logged to the audit system."""
+        test_name = "Decision Logging"
+        start_time = datetime.utcnow()
+
+        try:
+            from supervisor_agent.integrated_supervisor import IntegratedSupervisor, SupervisorConfig
+            from reporting.audit_system import AuditEventType
+
+            config = SupervisorConfig(
+                data_dir=self.temp_dir,
+                monitoring_enabled=True,
+                error_handling_enabled=False,
+                reporting_enabled=True,
+                background_processing=False
+            )
+
+            supervisor = IntegratedSupervisor(config)
+            await supervisor.start()
+
+            # This task should trigger a 'WARN' or 'CORRECT' decision due to low quality
+            async def low_quality_task():
+                return {"result": "short", "quality": 0.5}
+
+            result = await supervisor.execute_supervised_task(
+                task_id="decision_log_test_task",
+                task_callable=low_quality_task,
+                framework="test"
+            )
+
+            # Search the audit log for the decision
+            decision_events = supervisor.audit_system.search(event_type=AuditEventType.DECISION_MADE.value)
+
+            await supervisor.stop()
+
+            self.assertTrue(len(decision_events) > 0, "DECISION_MADE event was not logged.")
+
+            logged_event = decision_events[0]
+            self.assertIn("minimax_details", logged_event.metadata["decision_details"])
+            self.assertIn("considered_actions", logged_event.metadata["decision_details"]["minimax_details"])
+
+            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            self.record_test_result(
+                test_name, True,
+                f"Successfully logged {len(decision_events)} decision event(s).",
+                execution_time
+            )
+
         except Exception as e:
             execution_time = (datetime.utcnow() - start_time).total_seconds()
             self.record_test_result(test_name, False, f"Error: {str(e)}", execution_time)
@@ -434,6 +490,7 @@ class SupervisorTestSuite:
             await self.test_error_handling_system()
             await self.test_monitoring_components()
             await self.test_reporting_system()
+            await self.test_decision_logging()
             await self.run_performance_benchmark()
             
             # Generate test summary
