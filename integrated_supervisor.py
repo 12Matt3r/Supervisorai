@@ -42,7 +42,7 @@ from .reporting.integrated_system import (
     BackgroundProcessor
 )
 
-from .reporting.alert_system import RealTimeAlertSystem
+from .reporting.alert_system import ComprehensiveAlertSystem
 from .reporting.report_generator import PeriodicReportGenerator
 from .reporting.audit_system import ComprehensiveAuditSystem, AuditEventType, AuditLevel
 from .reporting.confidence_system import ConfidenceReportingSystem
@@ -269,7 +269,7 @@ class IntegratedSupervisor:
         output_dir.mkdir(exist_ok=True)
         
         # Initialize individual reporting components
-        self.alert_system = RealTimeAlertSystem()
+        self.alert_system = ComprehensiveAlertSystem()
         self.report_generator = PeriodicReportGenerator(str(output_dir))
         self.audit_system = ComprehensiveAuditSystem(
             log_file=str(output_dir / "audit.jsonl"),
