@@ -509,6 +509,27 @@ async def get_minimax_decision(
         logger.error(f"Minimax decision failed: {e}")
         return json.dumps({"success": False, "error": str(e)})
 
+@mcp.tool
+async def get_decision_logs(limit: int = 50) -> str:
+    """Get a log of recent supervisor decisions."""
+    try:
+        supervisor = await get_supervisor_instance()
+
+        if hasattr(supervisor, 'audit_system'):
+            decision_events = supervisor.audit_system.search(
+                event_type='decision_made',
+                limit=limit
+            )
+            # Convert events to a JSON-serializable format
+            logs = [event.to_dict() for event in decision_events]
+            return json.dumps({"success": True, "logs": logs})
+        else:
+            return json.dumps({"success": False, "error": "Audit system not available."})
+
+    except Exception as e:
+        logger.error(f"Failed to get decision logs: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
 # ============================================================================
 # LEGACY MCP TOOLS - BACKWARD COMPATIBILITY 
 # ============================================================================

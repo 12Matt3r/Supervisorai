@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #4a4a4a; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2em; }
+        .controls { padding: 1em; border: 1px solid #ddd; border-radius: 8px; }
+        .dashboard { padding: 1em; }
+        .form-group { margin-bottom: 1.5em; }
+        label { display: block; margin-bottom: 0.5em; font-weight: bold; }
+        input[type="range"] { width: 100%; }
+        input[type="number"] { width: 100px; padding: 0.5em; border-radius: 4px; border: 1px solid #ccc; }
+        button { display: block; width: 100%; padding: 1em; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 1em; cursor: pointer; transition: background-color 0.3s; margin-top: 1em;}
+        button:hover { background-color: #0056b3; }
+        #result { margin-top: 1em; padding: 1em; background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; text-align: center; font-size: 1.2em; font-weight: bold; min-height: 50px; }
+        .slider-value { font-weight: normal; color: #007bff; margin-left: 1em; }
+        #log-container { margin-top: 2em; }
+        #log-display { background-color: #222; color: #0f0; font-family: monospace; padding: 1em; border-radius: 4px; height: 300px; overflow-y: scroll; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Supervisor Dashboard</h1>
+        <div class="grid">
+            <div class="controls">
+                <h2>Manual Test</h2>
+                <div class="form-group">
+                    <label for="quality_score">Quality Score: <span id="quality_score_value" class="slider-value">0.8</span></label>
+                    <input type="range" id="quality_score" min="0" max="1" step="0.01" value="0.8">
+                </div>
+                <div class="form-group">
+                    <label for="resource_usage">Resource Usage: <span id="resource_usage_value" class="slider-value">0.5</span></label>
+                    <input type="range" id="resource_usage" min="0" max="1" step="0.01" value="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="task_progress">Task Progress: <span id="task_progress_value" class="slider-value">0.6</span></label>
+                    <input type="range" id="task_progress" min="0" max="1" step="0.01" value="0.6">
+                </div>
+                <div class="form-group">
+                    <label for="error_count">Error Count:</label>
+                    <input type="number" id="error_count" min="0" max="10" value="1">
+                </div>
+                <button id="get_decision_btn">Get Single Decision</button>
+                <div id="result">...</div>
+            </div>
+            <div class="dashboard">
+                <h2>Real-Time Dashboard</h2>
+                <button id="refresh_dashboard_btn">Refresh Dashboard</button>
+                <div id="chart-container" style="margin-top: 1em;">
+                    <canvas id="decisionChart"></canvas>
+                </div>
+                <div id="log-container">
+                    <h3>Decision Logs</h3>
+                    <div id="log-display"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Manual Test Form Logic ---
+            const qualityScoreSlider = document.getElementById('quality_score');
+            const resourceUsageSlider = document.getElementById('resource_usage');
+            const taskProgressSlider = document.getElementById('task_progress');
+            const errorCountInput = document.getElementById('error_count');
+            const getDecisionBtn = document.getElementById('get_decision_btn');
+            const resultDiv = document.getElementById('result');
+
+            qualityScoreSlider.oninput = () => document.getElementById('quality_score_value').textContent = qualityScoreSlider.value;
+            resourceUsageSlider.oninput = () => document.getElementById('resource_usage_value').textContent = resourceUsageSlider.value;
+            taskProgressSlider.oninput = () => document.getElementById('task_progress_value').textContent = taskProgressSlider.value;
+
+            getDecisionBtn.addEventListener('click', () => {
+                resultDiv.textContent = 'Connecting...';
+                const socket = new WebSocket('ws://localhost:8765');
+
+                socket.onopen = () => {
+                    resultDiv.textContent = 'Getting decision...';
+                    const payload = {
+                        tool: 'get_minimax_decision',
+                        args: {
+                            quality_score: parseFloat(qualityScoreSlider.value),
+                            error_count: parseInt(errorCountInput.value, 10),
+                            resource_usage: parseFloat(resourceUsageSlider.value),
+                            task_progress: parseFloat(taskProgressSlider.value)
+                        }
+                    };
+                    socket.send(JSON.stringify(payload));
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const response = JSON.parse(event.data);
+                        if (response.success) {
+                            resultDiv.textContent = `Decision: ${response.decision}`;
+                        } else {
+                            resultDiv.textContent = `Error: ${response.error}`;
+                        }
+                    } catch (e) {
+                        resultDiv.textContent = 'Error: Could not parse server response.';
+                    }
+                    socket.close();
+                };
+
+                socket.onerror = (error) => {
+                    resultDiv.textContent = 'Error: Could not connect to the supervisor server.';
+                    console.error('WebSocket Error:', error);
+                };
+            });
+
+            // --- Dashboard Logic ---
+            const refreshDashboardBtn = document.getElementById('refresh_dashboard_btn');
+            const logDisplay = document.getElementById('log-display');
+            const ctx = document.getElementById('decisionChart').getContext('2d');
+            let decisionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Decision Score',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                }
+            });
+
+            const fetchDashboardData = () => {
+                logDisplay.textContent = 'Connecting...';
+                const socket = new WebSocket('ws://localhost:8765');
+
+                socket.onopen = () => {
+                    logDisplay.textContent = 'Fetching logs...';
+                    const payload = {
+                        tool: 'get_decision_logs',
+                        args: { limit: 50 }
+                    };
+                    socket.send(JSON.stringify(payload));
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const response = JSON.parse(event.data);
+                        if (response.success) {
+                            logDisplay.textContent = JSON.stringify(response.logs, null, 2);
+                            updateChart(response.logs);
+                        } else {
+                            logDisplay.textContent = `Error: ${response.error}`;
+                        }
+                    } catch (e) {
+                        logDisplay.textContent = 'Error: Could not parse server response.';
+                    }
+                    socket.close();
+                };
+
+                socket.onerror = (error) => {
+                    logDisplay.textContent = 'Error: Could not connect to the supervisor server.';
+                    console.error('WebSocket Error:', error);
+                };
+            };
+
+            const updateChart = (logs) => {
+                if (!logs || logs.length === 0) return;
+
+                // Sort logs by timestamp ascending
+                logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                const labels = logs.map(log => new Date(log.timestamp).toLocaleTimeString());
+                const scores = logs.map(log => log.metadata.decision_details.confidence);
+
+                decisionChart.data.labels = labels;
+                decisionChart.data.datasets[0].data = scores;
+                decisionChart.update();
+            };
+
+            refreshDashboardBtn.addEventListener('click', fetchDashboardData);
+
+            // Initial load
+            fetchDashboardData();
+        });
+    </script>
+
+</body>
+</html>
