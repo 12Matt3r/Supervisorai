@@ -22,8 +22,8 @@ class AgentState:
         """Determines if the state is a terminal state (e.g., task complete or failed)."""
         return self.task_progress >= 1.0 or self.quality_score <= 0.1
 
-class MinimaxAgent:
-    """A supervisor agent that uses the Minimax algorithm to choose interventions."""
+class ExpectimaxAgent:
+    """A supervisor agent that uses the Expectimax algorithm to choose interventions."""
 
     def __init__(self, depth: int = 2):
         """
@@ -61,7 +61,7 @@ class MinimaxAgent:
             return [Action.ESCALATE]
 
         actions = []
-        if state.quality_score > 0.9:
+        if state.quality_score >= 0.9:
             # If quality is very high, only allow or warn. No need to correct.
             actions.extend([Action.ALLOW, Action.WARN])
         elif state.quality_score < 0.4:
@@ -73,66 +73,89 @@ class MinimaxAgent:
 
         return list(set(actions)) # Return unique actions
 
-    def _apply_action(self, state: AgentState, action: Action) -> AgentState:
+    def _get_action_outcomes(self, state: AgentState, action: Action) -> List[tuple[float, AgentState]]:
         """
-        Simulates the effect of an action on a state, returning a new state.
-        This is a simplified model of the world.
+        Returns a list of possible outcomes for a given action, each with a probability.
+        Returns: A list of (probability, next_state) tuples.
         """
-        new_state = AgentState(
+        outcomes = []
+        base_state = AgentState(
             quality_score=state.quality_score,
             error_count=state.error_count,
             resource_usage=state.resource_usage,
             task_progress=state.task_progress
         )
-
-        # Simulate state changes based on action
-        if action == Action.ALLOW:
-            new_state.task_progress += 0.1
-            new_state.quality_score *= 0.95 # Quality degrades without intervention
-        elif action == Action.WARN:
-            new_state.task_progress += 0.05
-            new_state.resource_usage = min(1.0, new_state.resource_usage + 0.1) # Warnings have a cost
-        elif action == Action.CORRECT:
-            # Correction has a moderate cost
-            new_state.resource_usage = min(1.0, new_state.resource_usage + 0.15)
-            if state.quality_score < 0.85: # Only try to correct if quality is not high
-                quality_improvement = 0.4 * (1 - state.quality_score)
-                new_state.quality_score = min(1.0, state.quality_score + quality_improvement)
-                new_state.error_count = max(0, state.error_count - 1)
-            new_state.task_progress += 0.1
-        elif action == Action.ESCALATE:
-            # Escalation is a major setback
-            new_state.task_progress *= 0.2 # Drastic progress reduction
-            new_state.quality_score *= 0.1 # Catastrophic quality drop
-            new_state.error_count += 1
-
         # All actions increase resource usage slightly
-        new_state.resource_usage = min(1.0, new_state.resource_usage + 0.05)
+        base_state.resource_usage = min(1.0, base_state.resource_usage + 0.05)
 
-        return new_state
+        if action == Action.ALLOW:
+            # 80% chance quality degrades slightly, 20% chance it stays the same
+            state_degrade = AgentState(**base_state.__dict__)
+            state_degrade.quality_score *= 0.95
+            state_degrade.task_progress += 0.1
+            outcomes.append((0.8, state_degrade))
 
-    def minimax(self, state: AgentState, depth: int, maximizing_player: bool) -> float:
+            state_same = AgentState(**base_state.__dict__)
+            state_same.task_progress += 0.1
+            outcomes.append((0.2, state_same))
+
+        elif action == Action.WARN:
+            # Warning has a small cost and slightly less progress
+            state_warn = AgentState(**base_state.__dict__)
+            state_warn.task_progress += 0.05
+            state_warn.resource_usage = min(1.0, state_warn.resource_usage + 0.1)
+            outcomes.append((1.0, state_warn))
+
+        elif action == Action.CORRECT:
+            # 70% chance of successful correction, 30% chance of failure
+            state_success = AgentState(**base_state.__dict__)
+            state_success.resource_usage = min(1.0, state_success.resource_usage + 0.15)
+            if state.quality_score < 0.85:
+                quality_improvement = 0.4 * (1 - state.quality_score)
+                state_success.quality_score = min(1.0, state.quality_score + quality_improvement)
+                state_success.error_count = max(0, state.error_count - 1)
+            state_success.task_progress += 0.1
+            outcomes.append((0.7, state_success))
+
+            state_fail = AgentState(**base_state.__dict__)
+            state_fail.resource_usage = min(1.0, state_fail.resource_usage + 0.15)
+            # No improvement on failure, just cost
+            state_fail.task_progress += 0.02
+            outcomes.append((0.3, state_fail))
+
+        elif action == Action.ESCALATE:
+            # Escalation is a deterministic major setback
+            state_escalate = AgentState(**base_state.__dict__)
+            state_escalate.task_progress *= 0.2
+            state_escalate.quality_score *= 0.1
+            state_escalate.error_count += 1
+            outcomes.append((1.0, state_escalate))
+
+        return outcomes
+
+    def expectimax(self, state: AgentState, depth: int, action: Action) -> float:
         """
-        The core Minimax algorithm.
+        The core Expectimax algorithm.
+        Calculates the expected value of taking a given action from a given state.
         """
         if depth == 0 or state.is_terminal():
             return self._evaluate_state(state)
 
-        if maximizing_player:
-            max_eval = -math.inf
-            for action in self._get_possible_actions(state):
-                new_state = self._apply_action(state, action)
-                evaluation = self.minimax(new_state, depth - 1, False)
-                max_eval = max(max_eval, evaluation)
-            return max_eval
-        else: # Minimizing player (simulating the "environment" or "problem")
-            min_eval = math.inf
-            next_natural_state = state
-            next_natural_state.quality_score *= 0.95 # Simulate slight decay or difficulty
+        # Get the possible outcomes for the given action
+        outcomes = self._get_action_outcomes(state, action)
 
-            evaluation = self.minimax(next_natural_state, depth - 1, True)
-            min_eval = min(min_eval, evaluation)
-            return min_eval
+        # Calculate the weighted average of the scores of the outcomes
+        expected_value = 0
+        for probability, next_state in outcomes:
+            # For each outcome, find the value of the best action the agent can take next
+            max_eval = -math.inf
+            for next_action in self._get_possible_actions(next_state):
+                evaluation = self.expectimax(next_state, depth - 1, next_action)
+                max_eval = max(max_eval, evaluation)
+
+            expected_value += probability * max_eval
+
+        return expected_value
 
 
     def get_best_action(self, state: AgentState) -> Dict[str, Any]:
@@ -145,8 +168,7 @@ class MinimaxAgent:
         considered_actions = []
 
         for action in self._get_possible_actions(state):
-            new_state = self._apply_action(state, action)
-            score = self.minimax(new_state, self.depth, False)
+            score = self.expectimax(state, self.depth, action)
             considered_actions.append({"action": action.value, "score": score})
 
             if score > best_score:

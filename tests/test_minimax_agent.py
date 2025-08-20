@@ -5,14 +5,14 @@ import os
 # Add the 'src' directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from supervisor_agent.minimax_agent import MinimaxAgent, AgentState, Action
+from supervisor_agent.expectimax_agent import ExpectimaxAgent, AgentState, Action
 
-class TestMinimaxAgent(unittest.TestCase):
-    """Test suite for the MinimaxAgent."""
+class TestExpectimaxAgent(unittest.TestCase):
+    """Test suite for the ExpectimaxAgent."""
 
     def setUp(self):
-        """Set up a new MinimaxAgent for each test."""
-        self.minimax_agent = MinimaxAgent(depth=2)
+        """Set up a new ExpectimaxAgent for each test."""
+        self.agent = ExpectimaxAgent(depth=2)
 
     def test_allow_on_good_state(self):
         """
@@ -26,7 +26,7 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.8
         )
 
-        decision = self.minimax_agent.get_best_action(good_state)
+        decision = self.agent.get_best_action(good_state)
         best_action = decision["best_action"]
 
         self.assertEqual(best_action, Action.ALLOW, "Should ALLOW on a good state.")
@@ -43,7 +43,7 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.1
         )
 
-        decision = self.minimax_agent.get_best_action(bad_state)
+        decision = self.agent.get_best_action(bad_state)
         best_action = decision["best_action"]
 
         self.assertEqual(best_action, Action.ESCALATE, "Should ESCALATE on a bad state.")
@@ -60,7 +60,7 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.5
         )
 
-        decision = self.minimax_agent.get_best_action(medium_state)
+        decision = self.agent.get_best_action(medium_state)
         best_action = decision["best_action"]
 
         self.assertEqual(best_action, Action.CORRECT, "Should CORRECT on a medium state.")
@@ -77,7 +77,7 @@ class TestMinimaxAgent(unittest.TestCase):
             task_progress=0.7
         )
 
-        decision = self.minimax_agent.get_best_action(resource_issue_state)
+        decision = self.agent.get_best_action(resource_issue_state)
         best_action = decision["best_action"]
 
         self.assertIn(best_action, [Action.WARN, Action.ALLOW], "Should WARN or ALLOW on a resource issue state.")
