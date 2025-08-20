@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import uuid4
 from pathlib import Path
 
-from . import QualityMetrics, KnowledgeBaseEntry
+from supervisor_agent import QualityMetrics, KnowledgeBaseEntry
 
 
 class PatternLearner:

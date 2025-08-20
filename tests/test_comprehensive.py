@@ -115,7 +115,8 @@ class SupervisorTestSuite:
         start_time = datetime.utcnow()
         
         try:
-            from integrated_supervisor import IntegratedSupervisor, SupervisorConfig
+            from supervisor_agent.integrated_supervisor import IntegratedSupervisor
+            from supervisor_agent.integrated_supervisor import SupervisorConfig
             
             config = SupervisorConfig(
                 data_dir=self.temp_dir,
@@ -168,7 +169,7 @@ class SupervisorTestSuite:
         
         try:
             # Import the integrated server module
-            import server_integrated
+            from server import main as server_integrated
             
             # Test supervisor instance creation
             supervisor = await server_integrated.get_supervisor_instance()
@@ -213,7 +214,7 @@ class SupervisorTestSuite:
             # Create test error
             error = SupervisorError(
                 message="Test error",
-                error_type=ErrorType.TASK_FAILURE,
+                error_type=ErrorType.TEMPORARY_FAILURE,
                 context={"test": True}
             )
             
@@ -265,10 +266,10 @@ class SupervisorTestSuite:
             
             # Test task completion monitor
             task_monitor = TaskCompletionMonitor()
-            completion_score = await task_monitor.analyze_completion(
-                expected_outputs=["result"],
-                actual_outputs=["result"],
-                task_instructions=["produce result"]
+            completion_score = task_monitor.evaluate_task_completion(
+                task_data={'outputs': ["result"]},
+                original_goals=["produce result"],
+                current_progress={}
             )
             
             # Test quality monitor
