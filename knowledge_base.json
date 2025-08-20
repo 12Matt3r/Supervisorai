@@ -1,0 +1,20 @@
+[
+  {
+    "pattern_id": "faba5412",
+    "pattern_description": "JSON output with syntax errors and missing brackets",
+    "failure_type": "structure_failure",
+    "common_causes": [
+      "Malformed JSON structure",
+      "Missing required fields",
+      "Invalid data types"
+    ],
+    "suggested_fixes": [
+      "Validate JSON before output",
+      "Use JSON schema validation",
+      "Implement format checking middleware"
+    ],
+    "confidence_score": 0.85,
+    "occurrences": 1,
+    "last_seen": "2025-08-18T07:00:50.265174"
+  }
+]

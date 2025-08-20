@@ -1,0 +1,1 @@
+{"timestamp": "2025-08-18T07:00:05.966900", "task_id": "c578c209-ac84-4923-8df5-3adb17e1a4ab", "event_type": "monitor_start", "details": {"agent_name": "test_langchain_agent", "framework": "langchain", "input_length": 67, "instruction_count": 3}, "confidence": null, "metadata": {}}

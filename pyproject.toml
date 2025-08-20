@@ -1,0 +1,32 @@
+[project]
+name = "supervisor-mcp-agent"
+version = "0.1.0"
+description = "Comprehensive supervisor MCP agent for monitoring and auditing other agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=0.5.0",
+    "pydantic>=2.0.0",
+    "asyncio-throttle>=1.0.2",
+    "psutil>=5.9.0",
+    "jsonschema>=4.17.0",
+    "aiofiles>=23.1.0",
+    "httpx>=0.24.0",
+    "typing-extensions>=4.0.0",
+    "dataclasses-json>=0.6.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/supervisor_agent"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.0.261"
+]

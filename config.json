@@ -1,0 +1,61 @@
+{
+  "alerts": {
+    "email": {
+      "enabled": false,
+      "smtp_host": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "your-email@gmail.com",
+      "password": "your-app-password",
+      "from_address": "supervisor-alerts@company.com",
+      "to_addresses": ["admin@company.com", "ops@company.com"],
+      "use_tls": true
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    },
+    "webhook": {
+      "enabled": false,
+      "url": "https://your-monitoring-system.com/webhook",
+      "headers": {
+        "Authorization": "Bearer your-api-token",
+        "Content-Type": "application/json"
+      }
+    },
+    "task_timeout_threshold": 300,
+    "low_confidence_threshold": 0.3,
+    "error_rate_threshold": 0.1
+  },
+  "reports": {
+    "optimal_duration": 30,
+    "long_task_threshold": 300
+  },
+  "audit": {
+    "log_directory": "audit_logs",
+    "max_memory_events": 10000,
+    "queue_size": 1000
+  },
+  "confidence": {
+    "confidence_data_file": "confidence_data.jsonl",
+    "max_memory_entries": 10000,
+    "calibration_bins": 10
+  },
+  "patterns": {
+    "patterns_file": "patterns.json",
+    "knowledge_file": "knowledge_base.json",
+    "min_pattern_frequency": 3,
+    "pattern_lookback_days": 30,
+    "similarity_threshold": 0.8
+  },
+  "dashboard": {
+    "update_interval": 30
+  },
+  "export": {
+    "export_directory": "exports",
+    "max_concurrent_jobs": 3
+  },
+  "system": {
+    "health_check_interval": 60,
+    "log_level": "INFO"
+  }
+}

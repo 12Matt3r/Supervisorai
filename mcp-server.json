@@ -1,0 +1,47 @@
+{
+  "name": "integrated_supervisor_mcp_agent",
+  "exhibit_name": "Integrated Supervisor MCP Agent - Production",
+  "type": 3,
+  "command": "sh {mcp_dir}/run.sh",
+  "args": [],
+  "env": {},
+  "description": "Comprehensive, production-ready supervisor agent with integrated monitoring, error handling, reporting, and framework integration. Features tiered response system, real-time monitoring, automatic error recovery, pattern learning, and detailed analytics. Supports MCP, LangChain, AutoGen, and custom frameworks with 10 comprehensive supervision tools.",
+  "description_for_agent": "Advanced supervisor agent providing inline firewall and auditing capabilities for AI agents. Integrates monitoring engine, error handling system, reporting analytics, and framework adapters. Offers comprehensive supervision with quality control, intervention capabilities, audit logging, pattern learning, and multi-framework support. Production-ready with security, scalability, and performance optimization.",
+  "user_params": {
+    "args": {},
+    "env": {
+      "SUPERVISOR_DATA_DIR": {
+        "required": false,
+        "description": "Directory to store supervisor data files (patterns, audit logs, knowledge base, snapshots). Defaults to ./supervisor_data"
+      },
+      "LOG_LEVEL": {
+        "required": false,
+        "description": "Logging level for supervisor operations. Options: DEBUG, INFO, WARNING, ERROR. Defaults to INFO"
+      },
+      "ENABLE_REAL_TIME_ALERTS": {
+        "required": false,
+        "description": "Enable real-time alerting for critical interventions and quality issues. Set to 'true' to enable. Defaults to false"
+      },
+      "MAX_WORKERS": {
+        "required": false,
+        "description": "Maximum number of worker threads for background processing and concurrent task handling. Defaults to 4"
+      },
+      "MAX_AUDIT_LOG_SIZE_MB": {
+        "required": false,
+        "description": "Maximum size of audit log files in MB before rotation. Helps manage disk usage. Defaults to 100MB"
+      },
+      "QUALITY_THRESHOLD": {
+        "required": false,
+        "description": "Minimum quality threshold for automatic acceptance of outputs (0.0-1.0). Defaults to 0.7"
+      },
+      "CONFIDENCE_THRESHOLD": {
+        "required": false,
+        "description": "Minimum confidence threshold for automated decisions (0.0-1.0). Defaults to 0.8"
+      },
+      "AUTO_RECOVERY_ENABLED": {
+        "required": false,
+        "description": "Enable automatic error recovery and retry mechanisms. Set to 'true' to enable. Defaults to true"
+      }
+    }
+  }
+}
