@@ -45,6 +45,7 @@ try:
         MonitoringRules, EscalationConfig, TaskStatus, 
         InterventionLevel, KnowledgeBaseEntry
     )
+    from minimax_agent import AgentState
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -468,6 +469,41 @@ async def get_integration_status() -> str:
         
     except Exception as e:
         logger.error(f"Integration status check failed: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def get_minimax_decision(
+    quality_score: float,
+    error_count: int,
+    resource_usage: float,
+    task_progress: float
+) -> str:
+    """Get a supervisor decision from the Minimax agent."""
+    try:
+        supervisor = await get_supervisor_instance()
+
+        # In basic mode, supervisor is SupervisorCore, which has the minimax_agent
+        if not hasattr(supervisor, 'minimax_agent'):
+            return json.dumps({"success": False, "error": "Minimax agent not available in the current supervisor instance."})
+
+        state = AgentState(
+            quality_score=quality_score,
+            error_count=error_count,
+            resource_usage=resource_usage,
+            task_progress=task_progress
+        )
+
+        # Access the minimax_agent from the supervisor instance
+        best_action = supervisor.minimax_agent.get_best_action(state)
+
+        return json.dumps({
+            "success": True,
+            "decision": best_action.value,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Minimax decision failed: {e}")
         return json.dumps({"success": False, "error": str(e)})
 
 # ============================================================================

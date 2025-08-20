@@ -21,6 +21,7 @@ from . import (
 from .quality_analyzer import QualityAnalyzer
 from .pattern_learner import PatternLearner
 from .audit_logger import AuditLogger
+from .minimax_agent import MinimaxAgent, AgentState, Action
 
 
 class SupervisorCore:
@@ -34,6 +35,7 @@ class SupervisorCore:
         self.quality_analyzer = QualityAnalyzer()
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl"))
+        self.minimax_agent = MinimaxAgent(depth=2) # Initialize the MiniMax agent
         
         # State management
         self.active_tasks: Dict[str, AgentTask] = {}
@@ -155,55 +157,41 @@ class SupervisorCore:
         output: str,
         quality_metrics: QualityMetrics
     ) -> Dict[str, Any]:
-        """Determine if intervention is needed"""
-        intervention_required = False
-        level = None
-        reason = ""
-        confidence = 0.0
+        """Determine if intervention is needed using the Minimax agent."""
         
-        # Check quality thresholds
-        if quality_metrics.confidence_score < self.monitoring_rules.escalation_threshold:
-            intervention_required = True
-            level = InterventionLevel.ESCALATION
-            reason = f"Quality score too low: {quality_metrics.confidence_score:.2f}"
-            confidence = 1.0 - quality_metrics.confidence_score
-        
-        elif quality_metrics.confidence_score < self.monitoring_rules.quality_threshold:
-            if quality_metrics.structure_score < 0.6:  # JSON/format issues
-                intervention_required = True
-                level = InterventionLevel.CORRECTION
-                reason = "Output format issues detected"
-                confidence = 0.8
-            else:
-                intervention_required = True
-                level = InterventionLevel.WARNING
-                reason = "Quality below threshold"
-                confidence = 0.6
-        
-        # Check resource usage
-        if task.resource_usage.token_count > self.monitoring_rules.max_token_threshold:
-            intervention_required = True
-            level = InterventionLevel.WARNING
-            reason = f"Token usage exceeded: {task.resource_usage.token_count}"
-            confidence = 0.9
-        
-        # Check for patterns from knowledge base
-        pattern_match = await self.pattern_learner.check_pattern(
-            output, task.instructions, quality_metrics
+        # 1. Create the current state object for the Minimax agent
+        current_state = AgentState(
+            quality_score=quality_metrics.confidence_score,
+            error_count=len([i for i in task.interventions if i["level"] == "ESCALATION"]), # Simple error count
+            resource_usage=task.resource_usage.token_count / self.monitoring_rules.max_token_threshold,
+            task_progress=len(task.outputs) / 10.0 # Estimate progress based on number of outputs
         )
-        
-        if pattern_match and pattern_match["confidence"] > 0.7:
-            intervention_required = True
-            level = InterventionLevel.CORRECTION
-            reason = f"Known failure pattern detected: {pattern_match['pattern_id']}"
-            confidence = pattern_match["confidence"]
-        
+
+        # 2. Get the best action from the Minimax agent
+        best_action = self.minimax_agent.get_best_action(current_state)
+
+        # 3. Translate the action into the format expected by the system
+        intervention_required = True
+        reason = f"Minimax agent decided action: {best_action.value}"
+        confidence = 1.0 # The agent is confident in its choice
+
+        level_map = {
+            Action.ALLOW: None, # No intervention
+            Action.WARN: InterventionLevel.WARNING,
+            Action.CORRECTION: InterventionLevel.CORRECTION,
+            Action.ESCALATE: InterventionLevel.ESCALATION,
+        }
+        level = level_map[best_action]
+
+        if level is None:
+            intervention_required = False
+
         return {
             "intervention_required": intervention_required,
             "level": level.value if level else None,
             "reason": reason,
             "confidence": confidence,
-            "pattern_match": pattern_match
+            "pattern_match": None # Pattern matching is not used by minimax
         }
 
     async def _apply_intervention(
