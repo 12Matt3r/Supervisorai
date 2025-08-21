@@ -16,7 +16,7 @@ from .retry_system import RetrySystem
 from .rollback_manager import RollbackManager
 from .escalation_handler import EscalationHandler
 # from .loop_detector import LoopDetector # Commented out due to missing file
-from .history_manager import HistoryManager, HistoryEventType
+# from .history_manager import HistoryManager, HistoryEventType # Commented out due to missing file
 from .recovery_orchestrator import RecoveryOrchestrator, RecoveryResult
 
 
@@ -68,9 +68,10 @@ class SupervisorErrorHandlingSystem:
         
         # self.loop_detector = LoopDetector() # Commented out due to missing file
         self.loop_detector = None
-        self.history_manager = HistoryManager(
-            storage_path=self.storage_path / "history"
-        )
+        # self.history_manager = HistoryManager( # Commented out
+        #     storage_path=self.storage_path / "history"
+        # )
+        self.history_manager = None
         
         # Initialize recovery orchestrator with all components
         self.recovery_orchestrator = RecoveryOrchestrator(
@@ -78,7 +79,7 @@ class SupervisorErrorHandlingSystem:
             rollback_manager=self.rollback_manager,
             escalation_handler=self.escalation_handler,
             loop_detector=None, # self.loop_detector, # Commented out
-            history_manager=self.history_manager
+            history_manager=None # self.history_manager # Commented out
         )
         
         # System state
@@ -135,21 +136,22 @@ class SupervisorErrorHandlingSystem:
         self.system_stats["total_errors_handled"] += 1
         
         # Create or get history
-        history_id = self.history_manager.create_history(
-            agent_id=agent_id,
-            task_id=task_id,
-            initial_data=state_data or {}
-        )
+        history_id = None
+        # history_id = self.history_manager.create_history( # Commented out
+        #     agent_id=agent_id,
+        #     task_id=task_id,
+        #     initial_data=state_data or {}
+        # )
         
         # Record error in history
-        self.history_manager.add_entry(
-            history_id=history_id,
-            event_type=HistoryEventType.ERROR_OCCURRED,
-            data=supervisor_error.to_dict(),
-            metadata={"recovery_initiated": True},
-            agent_id=agent_id,
-            task_id=task_id
-        )
+        # self.history_manager.add_entry( # Commented out
+        #     history_id=history_id,
+        #     event_type=HistoryEventType.ERROR_OCCURRED,
+        #     data=supervisor_error.to_dict(),
+        #     metadata={"recovery_initiated": True},
+        #     agent_id=agent_id,
+        #     task_id=task_id
+        # )
         
         # Create state snapshot if state data provided
         snapshot_id = None
@@ -306,7 +308,7 @@ class SupervisorErrorHandlingSystem:
                 "rollback_manager": await self.rollback_manager.get_status(),
                 "escalation_handler": await self.escalation_handler.get_status() if self.escalation_handler else None,
                 # "loop_detector": await self.loop_detector.get_status(), # Commented out
-                "history_manager": await self.history_manager.get_status(),
+                # "history_manager": await self.history_manager.get_status(), # Commented out
                 "recovery_orchestrator": await self.recovery_orchestrator.get_status()
             },
             "storage_path": str(self.storage_path),
@@ -374,7 +376,7 @@ class SupervisorErrorHandlingSystem:
         if self.escalation_handler:
             await self.escalation_handler.shutdown()
         # await self.loop_detector.shutdown() # Commented out
-        await self.history_manager.shutdown()
+        # await self.history_manager.shutdown() # Commented out
         await self.recovery_orchestrator.shutdown()
         
         self.is_initialized = False

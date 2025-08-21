@@ -24,8 +24,8 @@ from .error_types import SupervisorError, ErrorType, ErrorSeverity, ErrorClassif
 from .retry_system import RetrySystem
 from .rollback_manager import RollbackManager
 from .escalation_handler import EscalationHandler
-from .loop_detector import LoopDetector
-from .history_manager import HistoryManager, HistoryEventType
+# from .loop_detector import LoopDetector # Commented out
+# from .history_manager import HistoryManager, HistoryEventType # Commented out
 
 
 class ErrorHandlingExamples:
@@ -334,176 +334,176 @@ class ErrorHandlingExamples:
                 self.logger.info(f"Generated escalation report for {ticket_ids[1]}")
                 self.logger.info(f"Report summary: {report['error_analysis']}")
     
-    async def example_6_loop_detection(self):
-        """Example 6: Loop detection and circuit breaker patterns."""
+    # async def example_6_loop_detection(self): # Commented out
+    #     """Example 6: Loop detection and circuit breaker patterns."""
         
-        self.logger.info("=== Example 6: Loop Detection ===")
+    #     self.logger.info("=== Example 6: Loop Detection ===")
         
-        loop_detector = LoopDetector()
+    #     loop_detector = LoopDetector()
         
-        # Simulate repetitive execution that might indicate a loop
-        agent_id = "loop_prone_agent"
-        task_id = "repetitive_task"
+    #     # Simulate repetitive execution that might indicate a loop
+    #     agent_id = "loop_prone_agent"
+    #     task_id = "repetitive_task"
         
-        # Simulate execution points that would trigger loop detection
-        execution_scenarios = [
-            # Normal execution
-            {"state": {"step": 1}, "output": "Processing step 1"},
-            {"state": {"step": 2}, "output": "Processing step 2"},
-            {"state": {"step": 3}, "output": "Processing step 3"},
+    #     # Simulate execution points that would trigger loop detection
+    #     execution_scenarios = [
+    #         # Normal execution
+    #         {"state": {"step": 1}, "output": "Processing step 1"},
+    #         {"state": {"step": 2}, "output": "Processing step 2"},
+    #         {"state": {"step": 3}, "output": "Processing step 3"},
             
-            # Start of potential loop
-            {"state": {"step": 1}, "output": "Processing step 1"},  # Repeat
-            {"state": {"step": 1}, "output": "Processing step 1"},  # Repeat
-            {"state": {"step": 1}, "output": "Processing step 1"},  # Repeat - should trigger
-        ]
-        
-        loop_detection = None
-        for i, scenario in enumerate(execution_scenarios):
-            self.logger.info(f"Recording execution point {i+1}: {scenario['state']}")
+    #         # Start of potential loop
+    #         {"state": {"step": 1}, "output": "Processing step 1"},  # Repeat
+    #         {"state": {"step": 1}, "output": "Processing step 1"},  # Repeat
+    #         {"state": {"step": 1}, "output": "Processing step 1"},  # Repeat - should trigger
+    #     ]
+
+    #     loop_detection = None
+    #     for i, scenario in enumerate(execution_scenarios):
+    #         self.logger.info(f"Recording execution point {i+1}: {scenario['state']}")
             
-            detection = loop_detector.record_execution_point(
-                agent_id=agent_id,
-                task_id=task_id,
-                state=scenario["state"],
-                output=scenario["output"],
-                context={"iteration": i+1}
-            )
+    #         detection = loop_detector.record_execution_point(
+    #             agent_id=agent_id,
+    #             task_id=task_id,
+    #             state=scenario["state"],
+    #             output=scenario["output"],
+    #             context={"iteration": i+1}
+    #         )
             
-            if detection:
-                loop_detection = detection
-                self.logger.warning(
-                    f"Loop detected! Type: {detection.loop_type.value}, "
-                    f"Confidence: {detection.confidence_score:.2f}, "
-                    f"Severity: {detection.severity}"
-                )
-                break
-        
-        # Demonstrate agent pausing
-        if loop_detection:
-            loop_detector.pause_agent(
-                agent_id=agent_id,
-                reason=f"Loop detected: {loop_detection.loop_type.value}"
-            )
+    #         if detection:
+    #             loop_detection = detection
+    #             self.logger.warning(
+    #                 f"Loop detected! Type: {detection.loop_type.value}, "
+    #                 f"Confidence: {detection.confidence_score:.2f}, "
+    #                 f"Severity: {detection.severity}"
+    #             )
+    #             break
+
+    #     # Demonstrate agent pausing
+    #     if loop_detection:
+    #         loop_detector.pause_agent(
+    #             agent_id=agent_id,
+    #             reason=f"Loop detected: {loop_detection.loop_type.value}"
+    #         )
             
-            is_paused = loop_detector.is_agent_paused(agent_id)
-            self.logger.info(f"Agent {agent_id} is paused: {is_paused}")
+    #         is_paused = loop_detector.is_agent_paused(agent_id)
+    #         self.logger.info(f"Agent {agent_id} is paused: {is_paused}")
             
-            # Resume agent after some time
-            await asyncio.sleep(0.1)  # Simulate investigation time
+    #         # Resume agent after some time
+    #         await asyncio.sleep(0.1)  # Simulate investigation time
             
-            resumed = loop_detector.resume_agent(agent_id)
-            self.logger.info(f"Agent {agent_id} resumed: {resumed}")
-        
-        # Demonstrate circuit breaker
-        circuit_breaker = loop_detector.get_circuit_breaker("example_service")
-        
-        # Simulate failures
-        for i in range(7):  # Exceed failure threshold
-            if circuit_breaker.is_call_allowed():
-                # Simulate call that fails
-                circuit_breaker.record_failure()
-                self.logger.info(f"Call {i+1} failed, circuit breaker failure count: {circuit_breaker.failure_count}")
-            else:
-                self.logger.info(f"Call {i+1} blocked by circuit breaker (state: {circuit_breaker.state.value})")
+    #         resumed = loop_detector.resume_agent(agent_id)
+    #         self.logger.info(f"Agent {agent_id} resumed: {resumed}")
+
+    #     # Demonstrate circuit breaker
+    #     circuit_breaker = loop_detector.get_circuit_breaker("example_service")
+
+    #     # Simulate failures
+    #     for i in range(7):  # Exceed failure threshold
+    #         if circuit_breaker.is_call_allowed():
+    #             # Simulate call that fails
+    #             circuit_breaker.record_failure()
+    #             self.logger.info(f"Call {i+1} failed, circuit breaker failure count: {circuit_breaker.failure_count}")
+    #         else:
+    #             self.logger.info(f"Call {i+1} blocked by circuit breaker (state: {circuit_breaker.state.value})")
     
-    async def example_7_history_and_versioning(self):
-        """Example 7: History management and versioning."""
-        
-        self.logger.info("=== Example 7: History and Versioning ===")
-        
-        history_manager = HistoryManager()
-        
-        # Create a history timeline
-        history_id = history_manager.create_history(
-            agent_id="versioned_agent",
-            task_id="complex_task",
-            initial_data={"status": "initialized", "version": "1.0"}
-        )
-        
-        self.logger.info(f"Created history timeline: {history_id}")
-        
-        # Record various events
-        events = [
-            {
-                "event_type": HistoryEventType.STATE_CHANGED,
-                "data": {"status": "processing", "progress": 25},
-                "metadata": {"trigger": "user_action"}
-            },
-            {
-                "event_type": HistoryEventType.ERROR_OCCURRED,
-                "data": {"error_type": "timeout", "message": "Processing timeout"},
-                "metadata": {"auto_detected": True}
-            },
-            {
-                "event_type": HistoryEventType.RETRY_ATTEMPTED,
-                "data": {"attempt": 1, "strategy": "exponential_backoff"},
-                "metadata": {"auto_retry": True}
-            },
-            {
-                "event_type": HistoryEventType.RECOVERY_SUCCESS,
-                "data": {"status": "completed", "progress": 100},
-                "metadata": {"recovery_method": "retry_with_adjustment"}
-            }
-        ]
-        
-        entry_ids = []
-        for event in events:
-            entry_id = history_manager.add_entry(
-                history_id=history_id,
-                event_type=event["event_type"],
-                data=event["data"],
-                metadata=event["metadata"],
-                agent_id="versioned_agent",
-                task_id="complex_task"
-            )
-            entry_ids.append(entry_id)
-            self.logger.info(f"Added {event['event_type'].value} entry: {entry_id}")
-        
-        # Create a version after significant progress
-        version_id = history_manager.create_version(
-            history_id=history_id,
-            summary="Major milestone: Recovered from timeout error",
-            tags=["milestone", "error_recovery", "timeout"]
-        )
-        
-        self.logger.info(f"Created version snapshot: {version_id}")
-        
-        # Record intervention
-        before_state = {"status": "error", "last_attempt": "failed"}
-        after_state = {"status": "recovered", "last_attempt": "success"}
-        
-        intervention_id = history_manager.record_intervention(
-            history_id=history_id,
-            intervention_type="manual_recovery",
-            intervention_data={"method": "state_reset", "operator": "system_admin"},
-            before_state=before_state,
-            after_state=after_state,
-            metadata={"intervention_reason": "automated_recovery_failed"}
-        )
-        
-        self.logger.info(f"Recorded intervention: {intervention_id}")
-        
-        # Query history
-        recent_entries = history_manager.get_history(
-            history_id=history_id,
-            limit=5
-        )
-        
-        self.logger.info(f"Recent history entries: {len(recent_entries)}")
-        for entry in recent_entries[-3:]:  # Show last 3
-            self.logger.info(
-                f"  - {entry['event_type']}: {entry['timestamp']} "
-                f"(Version: {entry['version']})"
-            )
-        
-        # Search for specific events
-        error_entries = history_manager.search_entries(
-            history_id=history_id,
-            event_type=HistoryEventType.ERROR_OCCURRED
-        )
-        
-        self.logger.info(f"Found {len(error_entries)} error events in history")
+    # async def example_7_history_and_versioning(self): # Commented out
+    #     """Example 7: History management and versioning."""
+
+    #     self.logger.info("=== Example 7: History and Versioning ===")
+
+    #     history_manager = HistoryManager()
+
+    #     # Create a history timeline
+    #     history_id = history_manager.create_history(
+    #         agent_id="versioned_agent",
+    #         task_id="complex_task",
+    #         initial_data={"status": "initialized", "version": "1.0"}
+    #     )
+
+    #     self.logger.info(f"Created history timeline: {history_id}")
+
+    #     # Record various events
+    #     events = [
+    #         {
+    #             "event_type": HistoryEventType.STATE_CHANGED,
+    #             "data": {"status": "processing", "progress": 25},
+    #             "metadata": {"trigger": "user_action"}
+    #         },
+    #         {
+    #             "event_type": HistoryEventType.ERROR_OCCURRED,
+    #             "data": {"error_type": "timeout", "message": "Processing timeout"},
+    #             "metadata": {"auto_detected": True}
+    #         },
+    #         {
+    #             "event_type": HistoryEventType.RETRY_ATTEMPTED,
+    #             "data": {"attempt": 1, "strategy": "exponential_backoff"},
+    #             "metadata": {"auto_retry": True}
+    #         },
+    #         {
+    #             "event_type": HistoryEventType.RECOVERY_SUCCESS,
+    #             "data": {"status": "completed", "progress": 100},
+    #             "metadata": {"recovery_method": "retry_with_adjustment"}
+    #         }
+    #     ]
+
+    #     entry_ids = []
+    #     for event in events:
+    #         entry_id = history_manager.add_entry(
+    #             history_id=history_id,
+    #             event_type=event["event_type"],
+    #             data=event["data"],
+    #             metadata=event["metadata"],
+    #             agent_id="versioned_agent",
+    #             task_id="complex_task"
+    #         )
+    #         entry_ids.append(entry_id)
+    #         self.logger.info(f"Added {event['event_type'].value} entry: {entry_id}")
+
+    #     # Create a version after significant progress
+    #     version_id = history_manager.create_version(
+    #         history_id=history_id,
+    #         summary="Major milestone: Recovered from timeout error",
+    #         tags=["milestone", "error_recovery", "timeout"]
+    #     )
+
+    #     self.logger.info(f"Created version snapshot: {version_id}")
+
+    #     # Record intervention
+    #     before_state = {"status": "error", "last_attempt": "failed"}
+    #     after_state = {"status": "recovered", "last_attempt": "success"}
+
+    #     intervention_id = history_manager.record_intervention(
+    #         history_id=history_id,
+    #         intervention_type="manual_recovery",
+    #         intervention_data={"method": "state_reset", "operator": "system_admin"},
+    #         before_state=before_state,
+    #         after_state=after_state,
+    #         metadata={"intervention_reason": "automated_recovery_failed"}
+    #     )
+
+    #     self.logger.info(f"Recorded intervention: {intervention_id}")
+
+    #     # Query history
+    #     recent_entries = history_manager.get_history(
+    #         history_id=history_id,
+    #         limit=5
+    #     )
+
+    #     self.logger.info(f"Recent history entries: {len(recent_entries)}")
+    #     for entry in recent_entries[-3:]:  # Show last 3
+    #         self.logger.info(
+    #             f"  - {entry['event_type']}: {entry['timestamp']} "
+    #             f"(Version: {entry['version']})"
+    #         )
+
+    #     # Search for specific events
+    #     error_entries = history_manager.search_entries(
+    #         history_id=history_id,
+    #         event_type=HistoryEventType.ERROR_OCCURRED
+    #     )
+
+    #     self.logger.info(f"Found {len(error_entries)} error events in history")
     
     async def example_8_comprehensive_scenario(self):
         """Example 8: Comprehensive scenario using all components together."""
@@ -663,8 +663,8 @@ class ErrorHandlingExamples:
             self.example_3_retry_strategies,
             self.example_4_rollback_and_checkpoints,
             self.example_5_escalation_management,
-            self.example_6_loop_detection,
-            self.example_7_history_and_versioning,
+            # self.example_6_loop_detection, # Commented out
+            # self.example_7_history_and_versioning, # Commented out
             self.example_8_comprehensive_scenario
         ]
         

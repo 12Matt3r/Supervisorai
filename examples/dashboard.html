@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supervisor Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; color: #333; }
         .container { max-width: 1200px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -169,6 +170,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            mermaid.initialize({ startOnLoad: false });
 
             // --- Helper for API calls ---
             const callMcpTool = async (tool, args) => {
@@ -411,24 +413,55 @@
             dbgProgressSlider.oninput = () => document.getElementById('dbg_task_progress_value').textContent = dbgProgressSlider.value;
             dbgDriftSlider.oninput = () => document.getElementById('dbg_drift_score_value').textContent = dbgDriftSlider.value;
 
-            const renderTree = (node, parentElement) => {
-                const li = document.createElement('li');
-                const nodeDiv = document.createElement('div');
-                nodeDiv.className = 'tree-node';
-                nodeDiv.textContent = node.name;
+            const renderTree = async (node) => {
+                const container = document.getElementById('debugger-tree-container');
+                container.innerHTML = ''; // Clear previous tree
 
-                // Store data for the inspector
-                nodeDiv.dataset.state = JSON.stringify(node.state || {});
-                nodeDiv.dataset.evaluation = JSON.stringify(node.evaluation || {});
+                let idCounter = 0;
+                const nodeDataMap = new Map();
 
-                li.appendChild(nodeDiv);
+                function buildMermaidString(node, parentId) {
+                    let str = '';
+                    const nodeId = `node${idCounter++}`;
+                    nodeDataMap.set(nodeId, { state: node.state, evaluation: node.evaluation });
 
-                if (node.children && node.children.length > 0) {
-                    const ul = document.createElement('ul');
-                    node.children.forEach(child => renderTree(child, ul));
-                    li.appendChild(ul);
+                    // Sanitize node name for Mermaid syntax
+                    const nodeName = node.name.replace(/"/g, '#quot;');
+                    str += `${nodeId}("${nodeName}")\n`;
+
+                    if (parentId) {
+                        str += `${parentId} --> ${nodeId}\n`;
+                    }
+
+                    if (node.children && node.children.length > 0) {
+                        node.children.forEach(child => {
+                            str += buildMermaidString(child, nodeId);
+                        });
+                    }
+                    return str;
                 }
-                parentElement.appendChild(li);
+
+                const mermaidString = `graph TD;\n${buildMermaidString(node, null)}`;
+
+                try {
+                    const { svg } = await mermaid.render('debugger-graph', mermaidString);
+                    container.innerHTML = svg;
+
+                    // Add click listeners to the new SVG nodes
+                    nodeDataMap.forEach((data, nodeId) => {
+                        const svgNode = container.querySelector(`#${nodeId}`);
+                        if (svgNode) {
+                            svgNode.style.cursor = 'pointer';
+                            svgNode.addEventListener('click', () => {
+                                updateInspector(data.state, data.evaluation);
+                            });
+                        }
+                    });
+
+                } catch (e) {
+                    container.textContent = 'Error rendering graph: ' + e.message;
+                    console.error(e);
+                }
             };
 
             const updateInspector = (state, evaluation) => {
@@ -470,11 +503,7 @@
                     });
 
                     if (response.success) {
-                        treeContainer.innerHTML = ''; // Clear
-                        const rootUl = document.createElement('ul');
-                        rootUl.className = 'tree';
-                        renderTree(response.trace, rootUl);
-                        treeContainer.appendChild(rootUl);
+                        await renderTree(response.trace);
                     } else {
                         treeContainer.textContent = `Error: ${response.error}`;
                     }
@@ -511,23 +540,32 @@
                         const projects = response.status.projects;
                         if (projects.length > 0) {
                              taskGraphDisplay.innerHTML = '<h4>Active Projects</h4>';
-                             projects.forEach(project => {
+                             projects.forEach(async (project, index) => {
                                 const projectDiv = document.createElement('div');
                                 projectDiv.innerHTML = `<h5>${project.name} (Status: ${project.status})</h5>`;
-                                const ul = document.createElement('ul');
+
+                                // Build Mermaid string for the task graph
+                                let mermaidString = 'graph TD;\n';
                                 for (const taskId in project.tasks) {
                                     const task = project.tasks[taskId];
-                                    const li = document.createElement('li');
-                                    let depText = task.dependencies.length > 0 ? ` (depends on ${task.dependencies.join(', ')})` : '';
-                                    li.textContent = `[${task.status}] ${task.name}${depText}`;
-                                    if (task.status === 'RUNNING') li.style.fontWeight = 'bold';
-                                    if (task.status === 'COMPLETED') li.style.textDecoration = 'line-through';
-                                    if (task.status === 'FAILED') li.style.color = 'red';
-                                    ul.appendChild(li);
+                                    const taskName = task.name.replace(/"/g, '#quot;');
+                                    mermaidString += `    ${taskId}["[${task.status}] ${taskName}"]\n`;
+                                    if (task.dependencies.length > 0) {
+                                        task.dependencies.forEach(dep => {
+                                            mermaidString += `    ${dep} --> ${taskId}\n`;
+                                        });
+                                    }
                                 }
-                                projectDiv.appendChild(ul);
+
+                                const mermaidContainer = document.createElement('div');
+                                mermaidContainer.className = 'mermaid';
+                                mermaidContainer.textContent = mermaidString;
+
+                                projectDiv.appendChild(mermaidContainer);
                                 taskGraphDisplay.appendChild(projectDiv);
                              });
+                             // Render all mermaid graphs
+                             await mermaid.run();
                         }
 
                     } else {

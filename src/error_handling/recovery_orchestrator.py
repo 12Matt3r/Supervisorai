@@ -16,7 +16,7 @@ from .retry_system import RetrySystem
 from .rollback_manager import RollbackManager
 from .escalation_handler import EscalationHandler, EscalationLevel
 # from .loop_detector import LoopDetector # Commented out due to missing file
-from .history_manager import HistoryManager, HistoryEventType
+# from .history_manager import HistoryManager, HistoryEventType # Commented out
 
 
 class RecoveryResult(Enum):
@@ -59,7 +59,7 @@ class RecoveryOrchestrator:
         rollback_manager: RollbackManager,
         escalation_handler: Optional[EscalationHandler],
         loop_detector: Optional[Any], # LoopDetector, # Commented out
-        history_manager: HistoryManager
+        history_manager: Optional[Any] # HistoryManager # Commented out
     ):
         self.retry_system = retry_system
         self.rollback_manager = rollback_manager
@@ -100,19 +100,19 @@ class RecoveryOrchestrator:
         
         # Record recovery start in history
         history_id = context.get('history_id')
-        if history_id:
-            self.history_manager.add_entry(
-                history_id=history_id,
-                event_type=HistoryEventType.RECOVERY_FAILURE,  # Will update to success if needed
-                data={
-                    'recovery_id': recovery_id,
-                    'error': error.to_dict(),
-                    'recovery_started': True
-                },
-                metadata={'recovery_orchestrator': True},
-                agent_id=agent_id,
-                task_id=task_id
-            )
+        # if history_id and self.history_manager: # Commented out
+        #     self.history_manager.add_entry(
+        #         history_id=history_id,
+        #         event_type=HistoryEventType.RECOVERY_FAILURE,  # Will update to success if needed
+        #         data={
+        #             'recovery_id': recovery_id,
+        #             'error': error.to_dict(),
+        #             'recovery_started': True
+        #         },
+        #         metadata={'recovery_orchestrator': True},
+        #         agent_id=agent_id,
+        #         task_id=task_id
+        #     )
         
         try:
             # Check if agent is paused
@@ -142,22 +142,22 @@ class RecoveryOrchestrator:
             self._update_recovery_stats(result, recovery_plan)
             
             # Record result in history
-            if history_id:
-                self.history_manager.add_entry(
-                    history_id=history_id,
-                    event_type=(
-                        HistoryEventType.RECOVERY_SUCCESS if result == RecoveryResult.SUCCESS
-                        else HistoryEventType.RECOVERY_FAILURE
-                    ),
-                    data={
-                        'recovery_id': recovery_id,
-                        'result': result.value,
-                        'strategies_used': [s.value for s in recovery_plan.strategies]
-                    },
-                    metadata={'recovery_completed': True},
-                    agent_id=agent_id,
-                    task_id=task_id
-                )
+            # if history_id and self.history_manager: # Commented out
+            #     self.history_manager.add_entry(
+            #         history_id=history_id,
+            #         event_type=(
+            #             HistoryEventType.RECOVERY_SUCCESS if result == RecoveryResult.SUCCESS
+            #             else HistoryEventType.RECOVERY_FAILURE
+            #         ),
+            #         data={
+            #             'recovery_id': recovery_id,
+            #             'result': result.value,
+            #             'strategies_used': [s.value for s in recovery_plan.strategies]
+            #         },
+            #         metadata={'recovery_completed': True},
+            #         agent_id=agent_id,
+            #         task_id=task_id
+            #     )
             
             self.logger.info(f"Recovery {recovery_id} completed with result: {result.value}")
             
@@ -509,7 +509,7 @@ class RecoveryOrchestrator:
                 'rollback_manager': await self.rollback_manager.get_status(),
                 'escalation_handler': await self.escalation_handler.get_status() if self.escalation_handler else None,
                 # 'loop_detector': await self.loop_detector.get_status(), # Commented out
-                'history_manager': await self.history_manager.get_status()
+                # 'history_manager': await self.history_manager.get_status() # Commented out
             },
             'timestamp': datetime.utcnow().isoformat()
         }

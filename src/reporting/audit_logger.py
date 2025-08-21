@@ -1,7 +1,10 @@
 import json
-import aiofiles
 from typing import Dict, Any, Optional
 from datetime import datetime
+try:
+    import aiofiles
+except ImportError:
+    aiofiles = None
 from pathlib import Path
 
 
@@ -31,6 +34,10 @@ class AuditLogger:
             "metadata": metadata or {}
         }
         
+        if not aiofiles:
+            print("Warning: aiofiles is not installed. Audit logging to file is disabled.")
+            return
+
         try:
             async with aiofiles.open(self.log_file, 'a') as f:
                 await f.write(json.dumps(event_record) + '\n')
@@ -48,7 +55,7 @@ class AuditLogger:
         
         events = []
         
-        if not self.log_file.exists():
+        if not aiofiles or not self.log_file.exists():
             return events
         
         try:
