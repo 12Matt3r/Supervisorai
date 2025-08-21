@@ -23,6 +23,7 @@ from monitoring.pattern_learner import PatternLearner
 from reporting.audit_logger import AuditLogger
 from reporting.audit_system import AuditEventType, AuditLevel
 from .expectimax_agent import ExpectimaxAgent, AgentState, Action
+from .llm_judge import LLMJudge
 from task_coherence.coherence_analyzer import CoherenceAnalyzer
 
 
@@ -37,6 +38,7 @@ class SupervisorCore:
         self.quality_analyzer = QualityAnalyzer()
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
         self.coherence_analyzer = CoherenceAnalyzer()
+        self.llm_judge = LLMJudge()
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl")) # Legacy logger
         self.expectimax_agent = ExpectimaxAgent(depth=2)
         self.audit_system = audit_system # New, more comprehensive audit system
@@ -106,7 +108,7 @@ class SupervisorCore:
         task.resource_usage.token_count += len(output.split())
         task.updated_at = datetime.now()
         
-        # Analyze output quality
+        # Analyze output quality with heuristic analyzer
         quality_metrics = await self.quality_analyzer.analyze(
             output=output,
             output_type=output_type,
@@ -114,6 +116,16 @@ class SupervisorCore:
             original_input=task.original_input
         )
         
+        # Get a second opinion from the LLM Judge
+        llm_evaluation = await self.llm_judge.evaluate_output(
+            output=output,
+            goals=task.instructions
+        )
+
+        # Combine the scores (e.g., 60% heuristic, 40% LLM)
+        blended_quality_score = (quality_metrics.confidence_score * 0.6) + (llm_evaluation.get("overall_score", 0) * 0.4)
+        quality_metrics.confidence_score = blended_quality_score # Update the main quality score
+
         task.quality_metrics = quality_metrics
 
         # Analyze task coherence
@@ -127,12 +139,13 @@ class SupervisorCore:
             task, output, quality_metrics, coherence_analysis
         )
         
-        # Store output and intervention result
+        # Store output and intervention result, including the LLM judge's reasoning
         output_record = {
             "timestamp": datetime.now().isoformat(),
             "output": output,
             "output_type": output_type,
             "quality_metrics": quality_metrics.__dict__,
+            "llm_judge_evaluation": llm_evaluation,
             "intervention_result": intervention_result,
             "metadata": metadata or {}
         }
