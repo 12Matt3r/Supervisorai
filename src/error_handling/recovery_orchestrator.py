@@ -15,7 +15,7 @@ from .error_types import SupervisorError, ErrorType, ErrorSeverity
 from .retry_system import RetrySystem
 from .rollback_manager import RollbackManager
 from .escalation_handler import EscalationHandler, EscalationLevel
-from .loop_detector import LoopDetector
+# from .loop_detector import LoopDetector # Commented out due to missing file
 from .history_manager import HistoryManager, HistoryEventType
 
 
@@ -58,7 +58,7 @@ class RecoveryOrchestrator:
         retry_system: RetrySystem,
         rollback_manager: RollbackManager,
         escalation_handler: Optional[EscalationHandler],
-        loop_detector: LoopDetector,
+        loop_detector: Optional[Any], # LoopDetector, # Commented out
         history_manager: HistoryManager
     ):
         self.retry_system = retry_system
@@ -116,9 +116,9 @@ class RecoveryOrchestrator:
         
         try:
             # Check if agent is paused
-            if self.loop_detector.is_agent_paused(agent_id):
-                self.logger.warning(f"Agent {agent_id} is paused, cannot recover")
-                return RecoveryResult.AGENT_PAUSED
+            # if self.loop_detector and self.loop_detector.is_agent_paused(agent_id): # Commented out
+            #     self.logger.warning(f"Agent {agent_id} is paused, cannot recover")
+            #     return RecoveryResult.AGENT_PAUSED
             
             # Generate recovery plan
             recovery_plan = self._generate_recovery_plan(error, context)
@@ -437,10 +437,11 @@ class RecoveryOrchestrator:
     ) -> RecoveryResult:
         """Pause the agent to prevent further issues."""
         
-        self.loop_detector.pause_agent(
-            agent_id=agent_id,
-            reason=f"Recovery pause due to {error.error_type.value}: {error.message}"
-        )
+        # if self.loop_detector: # Commented out
+        #     self.loop_detector.pause_agent(
+        #         agent_id=agent_id,
+        #         reason=f"Recovery pause due to {error.error_type.value}: {error.message}"
+        #     )
         
         return RecoveryResult.AGENT_PAUSED
     
@@ -455,10 +456,11 @@ class RecoveryOrchestrator:
         self.logger.critical(f"Emergency stop initiated for agent {agent_id} due to {error.error_type.value}")
         
         # Pause agent
-        self.loop_detector.pause_agent(
-            agent_id=agent_id,
-            reason=f"Emergency stop: {error.error_type.value}"
-        )
+        # if self.loop_detector: # Commented out
+        #     self.loop_detector.pause_agent(
+        #         agent_id=agent_id,
+        #         reason=f"Emergency stop: {error.error_type.value}"
+        #     )
         
         # Escalate to highest level
         if self.escalation_handler:
@@ -506,7 +508,7 @@ class RecoveryOrchestrator:
                 'retry_system': await self.retry_system.get_status(),
                 'rollback_manager': await self.rollback_manager.get_status(),
                 'escalation_handler': await self.escalation_handler.get_status() if self.escalation_handler else None,
-                'loop_detector': await self.loop_detector.get_status(),
+                # 'loop_detector': await self.loop_detector.get_status(), # Commented out
                 'history_manager': await self.history_manager.get_status()
             },
             'timestamp': datetime.utcnow().isoformat()

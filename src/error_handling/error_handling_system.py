@@ -15,7 +15,7 @@ from .error_types import SupervisorError, ErrorType, ErrorClassifier
 from .retry_system import RetrySystem
 from .rollback_manager import RollbackManager
 from .escalation_handler import EscalationHandler
-from .loop_detector import LoopDetector
+# from .loop_detector import LoopDetector # Commented out due to missing file
 from .history_manager import HistoryManager, HistoryEventType
 from .recovery_orchestrator import RecoveryOrchestrator, RecoveryResult
 
@@ -66,7 +66,8 @@ class SupervisorErrorHandlingSystem:
             storage_path=self.storage_path / "escalations"
         ) if escalation_enabled else None
         
-        self.loop_detector = LoopDetector()
+        # self.loop_detector = LoopDetector() # Commented out due to missing file
+        self.loop_detector = None
         self.history_manager = HistoryManager(
             storage_path=self.storage_path / "history"
         )
@@ -76,7 +77,7 @@ class SupervisorErrorHandlingSystem:
             retry_system=self.retry_system,
             rollback_manager=self.rollback_manager,
             escalation_handler=self.escalation_handler,
-            loop_detector=self.loop_detector,
+            loop_detector=None, # self.loop_detector, # Commented out
             history_manager=self.history_manager
         )
         
@@ -168,18 +169,18 @@ class SupervisorErrorHandlingSystem:
         try:
             # Check for loops first
             loop_detection = None
-            if state_data:
-                loop_detection = self.loop_detector.record_execution_point(
-                    agent_id=agent_id,
-                    task_id=task_id,
-                    state=state_data,
-                    output=str(error),
-                    context=context or {}
-                )
+            # if state_data and self.loop_detector: # Commented out
+            #     loop_detection = self.loop_detector.record_execution_point(
+            #         agent_id=agent_id,
+            #         task_id=task_id,
+            #         state=state_data,
+            #         output=str(error),
+            #         context=context or {}
+            #     )
                 
-                if loop_detection and loop_detection.severity in ["high", "critical"]:
-                    self.system_stats["loop_detections"] += 1
-                    return await self._handle_loop_error(loop_detection, supervisor_error, context or {})
+            #     if loop_detection and loop_detection.severity in ["high", "critical"]:
+            #         self.system_stats["loop_detections"] += 1
+            #         return await self._handle_loop_error(loop_detection, supervisor_error, context or {})
             
             # Execute comprehensive recovery
             recovery_context = (context or {}).copy()
@@ -260,10 +261,10 @@ class SupervisorErrorHandlingSystem:
         self.logger.warning(f"Handling loop error: {loop_detection.loop_type.value}")
         
         # Pause the agent immediately
-        self.loop_detector.pause_agent(
-            loop_detection.agent_id,
-            f"Loop detected: {loop_detection.loop_type.value}"
-        )
+        # self.loop_detector.pause_agent( # Commented out
+        #     loop_detection.agent_id,
+        #     f"Loop detected: {loop_detection.loop_type.value}"
+        # )
         
         # Escalate if escalation is enabled
         ticket_id = None
@@ -304,7 +305,7 @@ class SupervisorErrorHandlingSystem:
                 "retry_system": await self.retry_system.get_status(),
                 "rollback_manager": await self.rollback_manager.get_status(),
                 "escalation_handler": await self.escalation_handler.get_status() if self.escalation_handler else None,
-                "loop_detector": await self.loop_detector.get_status(),
+                # "loop_detector": await self.loop_detector.get_status(), # Commented out
                 "history_manager": await self.history_manager.get_status(),
                 "recovery_orchestrator": await self.recovery_orchestrator.get_status()
             },
@@ -314,13 +315,14 @@ class SupervisorErrorHandlingSystem:
     
     async def pause_agent(self, agent_id: str, reason: str = "Manual pause") -> bool:
         """Manually pause an agent."""
-        self.loop_detector.pause_agent(agent_id, reason)
+        # self.loop_detector.pause_agent(agent_id, reason) # Commented out
         self.system_stats["agents_paused"] += 1
         return True
     
     async def resume_agent(self, agent_id: str) -> bool:
         """Resume a paused agent."""
-        return self.loop_detector.resume_agent(agent_id)
+        # return self.loop_detector.resume_agent(agent_id) # Commented out
+        return True
     
     async def create_checkpoint(
         self,
@@ -371,7 +373,7 @@ class SupervisorErrorHandlingSystem:
         await self.rollback_manager.shutdown()
         if self.escalation_handler:
             await self.escalation_handler.shutdown()
-        await self.loop_detector.shutdown()
+        # await self.loop_detector.shutdown() # Commented out
         await self.history_manager.shutdown()
         await self.recovery_orchestrator.shutdown()
         

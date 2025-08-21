@@ -310,6 +310,13 @@
                     item.style.borderBottom = '1px solid #444';
                     item.style.paddingBottom = '1em';
                     const details = log.metadata.decision_details;
+
+                    if (details.level === 'assistance') {
+                        item.style.background = '#fffbe6';
+                        item.style.borderLeft = '5px solid #ffc107';
+                        item.style.paddingLeft = '1em';
+                    }
+
                     const button = document.createElement('button');
                     button.className = 'correct-btn';
                     button.textContent = 'Correct this Decision';

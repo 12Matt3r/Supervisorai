@@ -12,3 +12,4 @@ psutil==7.0.0
 Requests==2.32.5
 scikit_learn==1.7.1
 seaborn==0.13.2
+aiohttp==3.9.5

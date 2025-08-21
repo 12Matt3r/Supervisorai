@@ -25,6 +25,7 @@ from reporting.audit_system import AuditEventType, AuditLevel
 from .expectimax_agent import ExpectimaxAgent, AgentState, Action
 from .llm_judge import LLMJudge
 from task_coherence.coherence_analyzer import CoherenceAnalyzer
+from researcher.assistor import ResearchAssistor
 
 
 class SupervisorCore:
@@ -40,6 +41,7 @@ class SupervisorCore:
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
         self.coherence_analyzer = CoherenceAnalyzer()
         self.llm_judge = LLMJudge()
+        self.research_assistor = ResearchAssistor()
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl")) # Legacy logger
         self.audit_system = audit_system # New, more comprehensive audit system
 
@@ -200,7 +202,11 @@ class SupervisorCore:
 
         # Apply intervention if needed
         if intervention_result["intervention_required"]:
+            task.consecutive_failures += 1
             await self._apply_intervention(task, intervention_result)
+        else:
+            # If no intervention is needed, the task was successful, so reset counter.
+            task.consecutive_failures = 0
         
         # Log validation event
         await self.audit_logger.log_event(
@@ -257,6 +263,24 @@ class SupervisorCore:
         if level is None:
             intervention_required = False
 
+        # Check for "stuck" condition
+        STUCK_THRESHOLD = 2
+        if task.consecutive_failures >= STUCK_THRESHOLD and level in [InterventionLevel.CORRECTION, InterventionLevel.ESCALATION]:
+            print(f"Agent stuck condition detected for task {task.task_id}. Initiating research assistance.")
+            # Agent is stuck, override with research assistance
+            error_context = {"error_message": f"Received low quality score ({quality_metrics.confidence_score:.2f}) repeatedly."}
+            suggestion = await self.research_assistor.research_and_suggest(task, error_context)
+
+            return {
+                "intervention_required": True,
+                "level": InterventionLevel.ASSISTANCE.value,
+                "reason": suggestion,
+                "confidence": 1.0, # High confidence in providing assistance
+                "action": "ASSIST", # A new action type for this case
+                "minimax_details": {}
+            }
+
+
         # Return the enhanced decision data
         return {
             "intervention_required": intervention_required,
@@ -311,6 +335,10 @@ class SupervisorCore:
             if self.escalation_config.auto_pause_on_escalation:
                 task.status = TaskStatus.PAUSED
         
+        elif level == InterventionLevel.ASSISTANCE:
+            # Log the provided assistance suggestion
+            intervention_record["action_taken"] = "proactive_assistance_provided"
+
         task.interventions.append(intervention_record)
         
         # Learn from this intervention

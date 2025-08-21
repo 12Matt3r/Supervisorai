@@ -14,6 +14,7 @@ class InterventionLevel(Enum):
     WARNING = "warning"
     CORRECTION = "correction"
     ESCALATION = "escalation"
+    ASSISTANCE = "assistance"
 
 class ConfidenceLevel(Enum):
     LOW = "low"
@@ -66,6 +67,7 @@ class AgentTask:
     interventions: List[Dict[str, Any]] = field(default_factory=list)
     audit_trail: List[Dict[str, Any]] = field(default_factory=list)
     last_known_good_state: Optional[Dict[str, Any]] = None
+    consecutive_failures: int = 0
 
 @dataclass
 class SupervisionReport:
