@@ -46,6 +46,8 @@ try:
         InterventionLevel, KnowledgeBaseEntry
     )
     from supervisor_agent.minimax_agent import AgentState
+    from idea_validation.validator import Validator
+    from idea_validation.data_models import Idea
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -528,6 +530,37 @@ async def get_decision_logs(limit: int = 50) -> str:
 
     except Exception as e:
         logger.error(f"Failed to get decision logs: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def validate_idea(
+    description: str,
+    required_skills: List[str],
+    required_apis: List[str],
+    estimated_time_hours: int,
+    market_niche: str
+) -> str:
+    """Validate a project idea for feasibility and potential issues."""
+    try:
+        idea = Idea(
+            description=description,
+            required_skills=required_skills,
+            required_apis=required_apis,
+            estimated_time_hours=estimated_time_hours,
+            market_niche=market_niche
+        )
+
+        validator = Validator()
+        report = validator.validate(idea)
+
+        # Convert report to a JSON-serializable dictionary
+        import dataclasses
+        report_dict = dataclasses.asdict(report)
+
+        return json.dumps({"success": True, "report": report_dict})
+
+    except Exception as e:
+        logger.error(f"Idea validation failed: {e}")
         return json.dumps({"success": False, "error": str(e)})
 
 # ============================================================================

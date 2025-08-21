@@ -30,7 +30,27 @@
         <h1>Supervisor Dashboard</h1>
         <div class="grid">
             <div class="controls">
-                <h2>Manual Test</h2>
+                <h2>Idea Validation</h2>
+                <div id="idea-validation-form">
+                    <div class="form-group">
+                        <label for="idea_description">Idea Description:</label>
+                        <textarea id="idea_description" rows="4" style="width: 100%;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="required_skills">Required Skills (comma-separated):</label>
+                        <input type="text" id="required_skills" value="python, javascript">
+                    </div>
+                    <div class="form-group">
+                        <label for="market_niche">Market Niche:</label>
+                        <input type="text" id="market_niche" value="social media">
+                    </div>
+                    <button id="validate_idea_btn">Validate Idea</button>
+                    <div id="validation-result-display" style="margin-top: 1em; padding: 1em; background: #f8f9fa; border-radius: 4px;"></div>
+                </div>
+
+                <hr style="margin: 2em 0;">
+
+                <h2>Manual Decision Test</h2>
                 <div class="form-group">
                     <label for="quality_score">Quality Score: <span id="quality_score_value" class="slider-value">0.8</span></label>
                     <input type="range" id="quality_score" min="0" max="1" step="0.01" value="0.8">
@@ -51,7 +71,7 @@
                 <div id="result">...</div>
             </div>
             <div class="dashboard">
-                <h2>Real-Time Dashboard</h2>
+                <h2>Decision Dashboard</h2>
                 <button id="refresh_dashboard_btn">Refresh Dashboard</button>
                 <div id="chart-container" style="margin-top: 1em;">
                     <canvas id="decisionChart"></canvas>
@@ -116,7 +136,58 @@
                 };
             });
 
-            // --- Dashboard Logic ---
+            // --- Idea Validation Logic ---
+            const validateIdeaBtn = document.getElementById('validate_idea_btn');
+            const ideaDescription = document.getElementById('idea_description');
+            const requiredSkills = document.getElementById('required_skills');
+            const marketNiche = document.getElementById('market_niche');
+            const validationResultDisplay = document.getElementById('validation-result-display');
+
+            validateIdeaBtn.addEventListener('click', () => {
+                validationResultDisplay.textContent = 'Validating...';
+                const socket = new WebSocket('ws://localhost:8765');
+
+                socket.onopen = () => {
+                    const payload = {
+                        tool: 'validate_idea',
+                        args: {
+                            description: ideaDescription.value,
+                            required_skills: requiredSkills.value.split(',').map(s => s.trim()),
+                            required_apis: [], // Not implemented in UI for simplicity
+                            estimated_time_hours: 50, // Dummy value
+                            market_niche: marketNiche.value
+                        }
+                    };
+                    socket.send(JSON.stringify(payload));
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const response = JSON.parse(event.data);
+                        if (response.success) {
+                            validationResultDisplay.innerHTML = `
+                                <h3>Validation Report</h3>
+                                <p><strong>Score:</strong> ${response.report.overall_score.toFixed(2)}</p>
+                                <p><strong>Summary:</strong> ${response.report.summary}</p>
+                                <ul>
+                                    ${response.report.findings.map(f => `<li><strong>${f.risk_level}:</strong> ${f.message}</li>`).join('')}
+                                </ul>
+                            `;
+                        } else {
+                            validationResultDisplay.textContent = `Error: ${response.error}`;
+                        }
+                    } catch (e) {
+                        validationResultDisplay.textContent = 'Error parsing server response.';
+                    }
+                    socket.close();
+                };
+
+                socket.onerror = (error) => {
+                    validationResultDisplay.textContent = 'Error connecting to server.';
+                };
+            });
+
+            // --- Decision Dashboard Logic ---
             const refreshDashboardBtn = document.getElementById('refresh_dashboard_btn');
             const logDisplay = document.getElementById('log-display');
             const ctx = document.getElementById('decisionChart').getContext('2d');
