@@ -129,6 +129,18 @@ class AuditLogger:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_session_id ON audit_events(session_id)"
             )
+
+            # Create feedback log table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS feedback_log (
+                    feedback_id TEXT PRIMARY KEY,
+                    original_event_id TEXT NOT NULL,
+                    user_correction TEXT NOT NULL,
+                    notes TEXT,
+                    feedback_timestamp TEXT NOT NULL,
+                    FOREIGN KEY (original_event_id) REFERENCES audit_events (id)
+                )
+            """)
     
     def _setup_async_logging(self):
         """Setup asynchronous logging to avoid blocking"""
@@ -534,6 +546,28 @@ class ComprehensiveAuditSystem:
         
         return str(output_path)
     
+    def log_feedback(self, original_event_id: str, user_correction: str, notes: Optional[str] = None):
+        """Logs user feedback for a specific decision event."""
+        feedback_id = f"fb_{original_event_id}"
+        feedback_timestamp = datetime.now().isoformat()
+
+        if self.logger.db_file:
+            with sqlite3.connect(self.logger.db_file) as conn:
+                conn.execute(
+                    "INSERT INTO feedback_log (feedback_id, original_event_id, user_correction, notes, feedback_timestamp) VALUES (?, ?, ?, ?, ?)",
+                    (feedback_id, original_event_id, user_correction, notes, feedback_timestamp)
+                )
+
+    def get_feedback_logs(self, limit: int = 100) -> List[Dict]:
+        """Retrieves recent feedback logs."""
+        if not self.logger.db_file:
+            return []
+
+        with sqlite3.connect(self.logger.db_file) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT * FROM feedback_log ORDER BY feedback_timestamp DESC LIMIT ?", (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+
     def shutdown(self):
         """Shutdown the audit system"""
         self.logger.shutdown()

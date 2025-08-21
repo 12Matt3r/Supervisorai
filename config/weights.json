@@ -1,0 +1,7 @@
+{
+  "quality_score": 60.0,
+  "task_progress": 20.0,
+  "inv_drift_score": 100.0,
+  "inv_error_count": 200.0,
+  "inv_resource_usage": 40.0
+}

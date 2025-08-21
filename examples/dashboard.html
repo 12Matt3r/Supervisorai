@@ -72,7 +72,12 @@
             </div>
             <div class="dashboard">
                 <h2>Decision Dashboard</h2>
-                <button id="refresh_dashboard_btn">Refresh Dashboard</button>
+                <div style="display: flex; gap: 1em; margin-bottom: 1em;">
+                    <button id="refresh_dashboard_btn" style="flex-grow: 1;">Refresh Dashboard</button>
+                    <button id="run_training_btn" style="flex-grow: 1; background-color: #28a745;">Run Training</button>
+                </div>
+                <div id="training-status" style="margin-top: 1em; padding: 1em; background: #f8f9fa; border-radius: 4px; display: none;"></div>
+
                 <div id="chart-container" style="margin-top: 1em;">
                     <canvas id="decisionChart"></canvas>
                 </div>
@@ -86,6 +91,30 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Helper for API calls ---
+            const callMcpTool = async (tool, args) => {
+                const socket = new WebSocket('ws://localhost:8765');
+                return new Promise((resolve, reject) => {
+                    socket.onopen = () => {
+                        socket.send(JSON.stringify({ tool, args }));
+                    };
+                    socket.onmessage = (event) => {
+                        try {
+                            const response = JSON.parse(event.data);
+                            resolve(response);
+                        } catch (e) {
+                            reject(new Error('Could not parse server response.'));
+                        } finally {
+                            socket.close();
+                        }
+                    };
+                    socket.onerror = (error) => {
+                        reject(new Error('Could not connect to the supervisor server.'));
+                    };
+                });
+            };
+
             // --- Manual Test Form Logic ---
             const qualityScoreSlider = document.getElementById('quality_score');
             const resourceUsageSlider = document.getElementById('resource_usage');
@@ -98,42 +127,23 @@
             resourceUsageSlider.oninput = () => document.getElementById('resource_usage_value').textContent = resourceUsageSlider.value;
             taskProgressSlider.oninput = () => document.getElementById('task_progress_value').textContent = taskProgressSlider.value;
 
-            getDecisionBtn.addEventListener('click', () => {
-                resultDiv.textContent = 'Connecting...';
-                const socket = new WebSocket('ws://localhost:8765');
-
-                socket.onopen = () => {
-                    resultDiv.textContent = 'Getting decision...';
-                    const payload = {
-                        tool: 'get_minimax_decision',
-                        args: {
-                            quality_score: parseFloat(qualityScoreSlider.value),
-                            error_count: parseInt(errorCountInput.value, 10),
-                            resource_usage: parseFloat(resourceUsageSlider.value),
-                            task_progress: parseFloat(taskProgressSlider.value)
-                        }
-                    };
-                    socket.send(JSON.stringify(payload));
-                };
-
-                socket.onmessage = (event) => {
-                    try {
-                        const response = JSON.parse(event.data);
-                        if (response.success) {
-                            resultDiv.textContent = `Decision: ${response.decision}`;
-                        } else {
-                            resultDiv.textContent = `Error: ${response.error}`;
-                        }
-                    } catch (e) {
-                        resultDiv.textContent = 'Error: Could not parse server response.';
+            getDecisionBtn.addEventListener('click', async () => {
+                resultDiv.textContent = 'Getting decision...';
+                try {
+                    const response = await callMcpTool('get_minimax_decision', {
+                        quality_score: parseFloat(qualityScoreSlider.value),
+                        error_count: parseInt(errorCountInput.value, 10),
+                        resource_usage: parseFloat(resourceUsageSlider.value),
+                        task_progress: parseFloat(taskProgressSlider.value)
+                    });
+                    if (response.success) {
+                        resultDiv.textContent = `Decision: ${response.decision}`;
+                    } else {
+                        resultDiv.textContent = `Error: ${response.error}`;
                     }
-                    socket.close();
-                };
-
-                socket.onerror = (error) => {
-                    resultDiv.textContent = 'Error: Could not connect to the supervisor server.';
-                    console.error('WebSocket Error:', error);
-                };
+                } catch (error) {
+                    resultDiv.textContent = `Error: ${error.message}`;
+                }
             });
 
             // --- Idea Validation Logic ---
@@ -143,114 +153,158 @@
             const marketNiche = document.getElementById('market_niche');
             const validationResultDisplay = document.getElementById('validation-result-display');
 
-            validateIdeaBtn.addEventListener('click', () => {
+            validateIdeaBtn.addEventListener('click', async () => {
                 validationResultDisplay.textContent = 'Validating...';
-                const socket = new WebSocket('ws://localhost:8765');
-
-                socket.onopen = () => {
-                    const payload = {
-                        tool: 'validate_idea',
-                        args: {
-                            description: ideaDescription.value,
-                            required_skills: requiredSkills.value.split(',').map(s => s.trim()),
-                            required_apis: [], // Not implemented in UI for simplicity
-                            estimated_time_hours: 50, // Dummy value
-                            market_niche: marketNiche.value
-                        }
-                    };
-                    socket.send(JSON.stringify(payload));
-                };
-
-                socket.onmessage = (event) => {
-                    try {
-                        const response = JSON.parse(event.data);
-                        if (response.success) {
-                            validationResultDisplay.innerHTML = `
-                                <h3>Validation Report</h3>
-                                <p><strong>Score:</strong> ${response.report.overall_score.toFixed(2)}</p>
-                                <p><strong>Summary:</strong> ${response.report.summary}</p>
-                                <ul>
-                                    ${response.report.findings.map(f => `<li><strong>${f.risk_level}:</strong> ${f.message}</li>`).join('')}
-                                </ul>
-                            `;
-                        } else {
-                            validationResultDisplay.textContent = `Error: ${response.error}`;
-                        }
-                    } catch (e) {
-                        validationResultDisplay.textContent = 'Error parsing server response.';
+                try {
+                    const response = await callMcpTool('validate_idea', {
+                        description: ideaDescription.value,
+                        required_skills: requiredSkills.value.split(',').map(s => s.trim()),
+                        required_apis: [],
+                        estimated_time_hours: 50,
+                        market_niche: marketNiche.value
+                    });
+                    if (response.success) {
+                        validationResultDisplay.innerHTML = `
+                            <h3>Validation Report</h3>
+                            <p><strong>Score:</strong> ${response.report.overall_score.toFixed(2)}</p>
+                            <p><strong>Summary:</strong> ${response.report.summary}</p>
+                            <ul>
+                                ${response.report.findings.map(f => `<li><strong>${f.risk_level}:</strong> ${f.message}</li>`).join('')}
+                            </ul>
+                        `;
+                    } else {
+                        validationResultDisplay.textContent = `Error: ${response.error}`;
                     }
-                    socket.close();
-                };
-
-                socket.onerror = (error) => {
-                    validationResultDisplay.textContent = 'Error connecting to server.';
-                };
+                } catch (error) {
+                    validationResultDisplay.textContent = `Error: ${error.message}`;
+                }
             });
 
             // --- Decision Dashboard Logic ---
             const refreshDashboardBtn = document.getElementById('refresh_dashboard_btn');
+            const runTrainingBtn = document.getElementById('run_training_btn');
+            const trainingStatusDiv = document.getElementById('training-status');
             const logDisplay = document.getElementById('log-display');
             const ctx = document.getElementById('decisionChart').getContext('2d');
             let decisionChart = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Decision Score',
-                        data: [],
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    }]
-                }
+                data: { labels: [], datasets: [{ label: 'Decision Score', data: [], borderColor: 'rgb(75, 192, 192)', tension: 0.1 }] }
             });
 
-            const fetchDashboardData = () => {
-                logDisplay.textContent = 'Connecting...';
-                const socket = new WebSocket('ws://localhost:8765');
-
-                socket.onopen = () => {
-                    logDisplay.textContent = 'Fetching logs...';
-                    const payload = {
-                        tool: 'get_decision_logs',
-                        args: { limit: 50 }
-                    };
-                    socket.send(JSON.stringify(payload));
-                };
-
-                socket.onmessage = (event) => {
-                    try {
-                        const response = JSON.parse(event.data);
-                        if (response.success) {
-                            logDisplay.textContent = JSON.stringify(response.logs, null, 2);
-                            updateChart(response.logs);
-                        } else {
-                            logDisplay.textContent = `Error: ${response.error}`;
-                        }
-                    } catch (e) {
-                        logDisplay.textContent = 'Error: Could not parse server response.';
+            const fetchDashboardData = async () => {
+                logDisplay.textContent = 'Fetching logs...';
+                try {
+                    const response = await callMcpTool('get_decision_logs', { limit: 50 });
+                    if (response.success) {
+                        renderLogs(response.logs);
+                        updateChart(response.logs);
+                    } else {
+                        logDisplay.textContent = `Error: ${response.error}`;
                     }
-                    socket.close();
-                };
-
-                socket.onerror = (error) => {
-                    logDisplay.textContent = 'Error: Could not connect to the supervisor server.';
-                    console.error('WebSocket Error:', error);
-                };
+                } catch (error) {
+                    logDisplay.textContent = `Error: ${error.message}`;
+                }
             };
 
             const updateChart = (logs) => {
                 if (!logs || logs.length === 0) return;
-
-                // Sort logs by timestamp ascending
                 logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
                 const labels = logs.map(log => new Date(log.timestamp).toLocaleTimeString());
                 const scores = logs.map(log => log.metadata.decision_details.confidence);
-
                 decisionChart.data.labels = labels;
                 decisionChart.data.datasets[0].data = scores;
                 decisionChart.update();
             };
+
+            const renderLogs = (logs) => {
+                logDisplay.innerHTML = '';
+                if (!logs || logs.length === 0) {
+                    logDisplay.innerHTML = '<p style="color: #888;">No decision logs found.</p>';
+                    return;
+                }
+                const logList = document.createElement('ul');
+                logList.style.listStyle = 'none';
+                logList.style.padding = '0';
+                logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                logs.forEach(log => {
+                    const item = document.createElement('li');
+                    item.style.marginBottom = '1em';
+                    item.style.borderBottom = '1px solid #444';
+                    item.style.paddingBottom = '1em';
+                    const details = log.metadata.decision_details;
+                    const button = document.createElement('button');
+                    button.className = 'correct-btn';
+                    button.textContent = 'Correct this Decision';
+                    button.dataset.eventId = log.id;
+                    // Store the necessary context for feedback submission
+                    button.dataset.context = JSON.stringify(details);
+
+                    item.innerHTML = `
+                        <strong>Action:</strong> ${details.action} |
+                        <strong>Score:</strong> ${details.confidence.toFixed(2)} |
+                        <strong>Time:</strong> ${new Date(log.timestamp).toLocaleString()}
+                        <br>
+                        <strong>Reason:</strong> ${details.reason}<br>
+                    `;
+                    item.appendChild(button);
+                    logList.appendChild(item);
+                });
+                logDisplay.appendChild(logList);
+            };
+
+            logDisplay.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('correct-btn')) {
+                    const button = e.target;
+                    const eventId = button.dataset.eventId;
+                    const context = JSON.parse(button.dataset.context);
+                    const correctedAction = prompt(`Event ID: ${eventId}\nWhat should the correct action have been? (ALLOW, WARN, CORRECT, ESCALATE)`);
+
+                    if (correctedAction && ['ALLOW', 'WARN', 'CORRECT', 'ESCALATE'].includes(correctedAction.toUpperCase())) {
+                        button.textContent = 'Submitting...';
+                        button.disabled = true;
+                        try {
+                            const response = await callMcpTool('submit_feedback', {
+                                event_id: eventId,
+                                corrected_action: correctedAction.toUpperCase(),
+                                decision_context: context
+                            });
+                            if (response.success) {
+                                button.textContent = 'Feedback Submitted!';
+                            } else {
+                                alert(`Error: ${response.error}`);
+                                button.textContent = 'Correct this Decision';
+                                button.disabled = false;
+                            }
+                        } catch (error) {
+                            alert(`Error: ${error.message}`);
+                            button.textContent = 'Correct this Decision';
+                            button.disabled = false;
+                        }
+                    }
+                }
+            });
+
+            runTrainingBtn.addEventListener('click', async () => {
+                trainingStatusDiv.style.display = 'block';
+                trainingStatusDiv.textContent = 'Starting training...';
+                trainingStatusDiv.style.color = '#333';
+                try {
+                    const response = await callMcpTool('run_training', {});
+                    if (response.success) {
+                        trainingStatusDiv.style.color = 'green';
+                        trainingStatusDiv.innerHTML = `
+                            <strong>Training Complete!</strong>
+                            <pre>${JSON.stringify(response.new_weights, null, 2)}</pre>
+                        `;
+                    } else {
+                        trainingStatusDiv.style.color = 'red';
+                        trainingStatusDiv.textContent = `Training Failed: ${response.error}`;
+                    }
+                } catch(error) {
+                    trainingStatusDiv.style.color = 'red';
+                    trainingStatusDiv.textContent = `Training Failed: ${error.message}`;
+                }
+            });
 
             refreshDashboardBtn.addEventListener('click', fetchDashboardData);
 

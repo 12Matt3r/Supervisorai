@@ -26,33 +26,53 @@ class AgentState:
 class ExpectimaxAgent:
     """A supervisor agent that uses the Expectimax algorithm to choose interventions."""
 
-    def __init__(self, depth: int = 2):
+    def __init__(self, depth: int = 2, weights: Dict[str, float] = None):
         """
-        Initializes the Minimax agent.
+        Initializes the Expectimax agent.
         Args:
-            depth: The maximum depth for the Minimax search tree.
+            depth: The maximum depth for the search tree.
+            weights: A dictionary of weights for the evaluation function.
         """
         self.depth = depth
+        if weights is None:
+            # Default weights if none are provided
+            self.weights = {
+                "quality_score": 0.30,
+                "task_progress": 0.10,
+                "inv_drift_score": 0.20,
+                "inv_error_count": 0.30,
+                "inv_resource_usage": 0.10,
+            }
+        else:
+            self.weights = weights
+
+        # Normalize weights to sum to 1, ensuring relative importance is maintained
+        total_weight = sum(self.weights.values())
+        if total_weight > 0:
+            for key in self.weights:
+                self.weights[key] /= total_weight
+
 
     def _evaluate_state(self, state: AgentState) -> float:
         """
         The evaluation function for a given state.
-        A higher score is better.
+        A higher score is better (0-1 range).
         """
         if state.is_terminal():
-            if state.task_progress >= 1.0:
-                return 1000.0
-            else:
-                return -1000.0
+            return 1.0 if state.task_progress >= 1.0 else 0.0
 
-        # Final tuned weights
-        score = (
-            (state.quality_score * 60) +
-            (state.task_progress * 20) -
-            (state.drift_score * 100) - # Penalize task drift
-            (state.error_count * 200) -
-            (state.resource_usage * 40)
-        )
+        # Transform features to be "higher is better" in a 0-1 range
+        features = {
+            "quality_score": state.quality_score,
+            "task_progress": min(1.0, state.task_progress),
+            "inv_drift_score": 1.0 - state.drift_score,
+            "inv_error_count": 1.0 / (1.0 + state.error_count),
+            "inv_resource_usage": 1.0 - state.resource_usage,
+        }
+
+        # Calculate weighted sum
+        score = sum(self.weights[key] * features[key] for key in self.weights)
+
         return score
 
     def _get_possible_actions(self, state: AgentState) -> List[Action]:

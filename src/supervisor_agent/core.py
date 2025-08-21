@@ -30,9 +30,10 @@ from task_coherence.coherence_analyzer import CoherenceAnalyzer
 class SupervisorCore:
     """Core supervisor engine for agent monitoring and intervention"""
 
-    def __init__(self, data_dir: str = "./supervisor_data", audit_system: Optional[Any] = None):
+    def __init__(self, data_dir: str = "./supervisor_data", audit_system: Optional[Any] = None, weights_file: str = "config/weights.json"):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
+        self.weights_file = weights_file
         
         # Core components
         self.quality_analyzer = QualityAnalyzer()
@@ -40,8 +41,11 @@ class SupervisorCore:
         self.coherence_analyzer = CoherenceAnalyzer()
         self.llm_judge = LLMJudge()
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl")) # Legacy logger
-        self.expectimax_agent = ExpectimaxAgent(depth=2)
         self.audit_system = audit_system # New, more comprehensive audit system
+
+        # Load weights and initialize the agent
+        self.weights = self._load_weights()
+        self.expectimax_agent = ExpectimaxAgent(depth=2, weights=self.weights)
         
         # State management
         self.active_tasks: Dict[str, AgentTask] = {}
@@ -51,6 +55,34 @@ class SupervisorCore:
         
         # Load persisted data
         asyncio.create_task(self._load_knowledge_base())
+
+    def _load_weights(self) -> Dict[str, float]:
+        """Loads weights from the specified JSON file."""
+        try:
+            with open(self.weights_file, 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            print(f"Warning: Could not load weights from {self.weights_file}. Using defaults.")
+            # Return a default set of weights if file is missing or corrupt
+            return {
+                "quality_score": 60.0,
+                "task_progress": 20.0,
+                "inv_drift_score": 100.0,
+                "inv_error_count": 200.0,
+                "inv_resource_usage": 40.0
+            }
+
+    def update_weights(self, new_weights: Dict[str, float]):
+        """Updates the agent's weights both in-memory and in the config file."""
+        self.weights = new_weights
+        self.expectimax_agent = ExpectimaxAgent(depth=2, weights=self.weights)
+        try:
+            with open(self.weights_file, 'w') as f:
+                json.dump(new_weights, f, indent=2)
+            print(f"Successfully updated weights in {self.weights_file}")
+        except IOError as e:
+            print(f"Error: Could not save updated weights to {self.weights_file}: {e}")
+
 
     async def monitor_agent(
         self,

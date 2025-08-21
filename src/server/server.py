@@ -563,6 +563,72 @@ async def validate_idea(
         logger.error(f"Idea validation failed: {e}")
         return json.dumps({"success": False, "error": str(e)})
 
+@mcp.tool
+async def submit_feedback(
+    event_id: str,
+    corrected_action: str,
+    decision_context: Dict[str, Any]
+) -> str:
+    """Submits user feedback on a supervisor decision."""
+    try:
+        feedback_file = Path("supervisor_data") / "feedback.json"
+
+        new_feedback = {
+            "event_id": event_id,
+            "corrected_action": corrected_action,
+            "original_decision": decision_context.get("action"),
+            "decision_context": decision_context.get("minimax_details", {}),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        all_feedback = []
+        if feedback_file.exists():
+            with open(feedback_file, 'r') as f:
+                try:
+                    all_feedback = json.load(f)
+                except json.JSONDecodeError:
+                    all_feedback = []
+
+        all_feedback.append(new_feedback)
+
+        with open(feedback_file, 'w') as f:
+            json.dump(all_feedback, f, indent=2)
+
+        return json.dumps({"success": True, "message": "Feedback submitted successfully."})
+
+    except Exception as e:
+        logger.error(f"Failed to submit feedback: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def run_training() -> str:
+    """Triggers the feedback-based training process for the supervisor agent."""
+    try:
+        supervisor = await get_supervisor_instance()
+        if not isinstance(supervisor, SupervisorCore):
+            return json.dumps({"success": False, "error": "Training is only available for the basic SupervisorCore."})
+
+        from supervisor_agent.feedback_trainer import FeedbackTrainer
+
+        feedback_file = "supervisor_data/feedback.json"
+        current_weights = supervisor.weights
+
+        trainer = FeedbackTrainer(feedback_file, current_weights)
+        new_weights = trainer.train_on_feedback()
+
+        supervisor.update_weights(new_weights)
+
+        return json.dumps({
+            "success": True,
+            "message": "Training complete. Weights updated.",
+            "new_weights": new_weights
+        })
+
+    except Exception as e:
+        logger.error(f"Training run failed: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+
 # ============================================================================
 # LEGACY MCP TOOLS - BACKWARD COMPATIBILITY 
 # ============================================================================
