@@ -48,6 +48,7 @@ try:
     from supervisor_agent.expectimax_agent import AgentState
     from idea_validation.validator import Validator
     from idea_validation.data_models import Idea
+    from orchestrator.core import Orchestrator
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -63,6 +64,22 @@ mcp = FastMCP("Integrated Supervisor Agent")
 # Global instances
 integrated_supervisor: Optional['IntegratedSupervisor'] = None
 basic_supervisor: Optional[SupervisorCore] = None
+orchestrator: Optional[Orchestrator] = None
+
+def get_orchestrator_instance() -> Orchestrator:
+    """Get the singleton orchestrator instance, creating it if necessary."""
+    global orchestrator
+    if orchestrator is None:
+        # The orchestrator needs a supervisor to function.
+        # We need to ensure the supervisor is initialized first.
+        # This is a bit tricky due to async/sync mixing.
+        # For now, we assume get_supervisor_instance has been called.
+        if basic_supervisor is None and integrated_supervisor is None:
+             raise RuntimeError("Supervisor must be initialized before the orchestrator.")
+
+        supervisor = integrated_supervisor if INTEGRATED_MODE else basic_supervisor
+        orchestrator = Orchestrator(supervisor=supervisor)
+    return orchestrator
 
 async def get_supervisor_instance():
     """Get appropriate supervisor instance based on availability"""
@@ -682,6 +699,58 @@ async def get_system_status() -> str:
     return await get_integration_status()
 
 # ============================================================================
+# ORCHESTRATOR MCP TOOLS
+# ============================================================================
+
+@mcp.tool
+async def register_agent(agent_id: str, name: str, capabilities: List[str]) -> str:
+    """Registers an agent with the orchestrator."""
+    try:
+        orch = get_orchestrator_instance()
+        agent = orch.register_agent(agent_id, name, capabilities)
+        import dataclasses
+        return json.dumps({"success": True, "agent": dataclasses.asdict(agent)})
+    except Exception as e:
+        logger.error(f"Failed to register agent: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def get_orchestrator_status() -> str:
+    """Gets the current status of the orchestrator, including all agents and projects."""
+    try:
+        orch = get_orchestrator_instance()
+        agents = orch.list_agents()
+        projects = list(orch.projects.values())
+        import dataclasses
+
+        status = {
+            "is_running": orch.is_running,
+            "agent_count": len(agents),
+            "agents": [dataclasses.asdict(a) for a in agents],
+            "project_count": len(projects),
+            "projects": [dataclasses.asdict(p) for p in projects]
+        }
+        return json.dumps({"success": True, "status": status}, default=str)
+    except Exception as e:
+        logger.error(f"Failed to get orchestrator status: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def submit_goal(name: str, description: str) -> str:
+    """Submits a new high-level goal to the orchestrator."""
+    try:
+        orch = get_orchestrator_instance()
+        project = orch.submit_goal(name, description)
+        import dataclasses
+        # Convert the project to a dict, but handle the nested tasks
+        project_dict = dataclasses.asdict(project)
+        return json.dumps({"success": True, "project": project_dict}, default=str)
+    except Exception as e:
+        logger.error(f"Failed to submit goal: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+
+# ============================================================================
 # SERVER STARTUP AND LIFECYCLE
 # ============================================================================
 
@@ -689,6 +758,11 @@ async def startup_handler():
     """Initialize supervisor systems on startup"""
     logger.info("Starting Integrated Supervisor MCP Server")
     try:
+        # Start the orchestrator
+        orch = get_orchestrator_instance()
+        orch.start()
+
+        # Start the supervisor
         supervisor = await get_supervisor_instance()
         logger.info(f"Supervisor initialized: {type(supervisor).__name__}")
         logger.info(f"Integration mode: {'Integrated' if INTEGRATED_MODE else 'Basic'}")
@@ -701,6 +775,10 @@ async def shutdown_handler():
     """Cleanup on shutdown"""
     logger.info("Shutting down Integrated Supervisor MCP Server")
     try:
+        # Stop the orchestrator
+        orch = get_orchestrator_instance()
+        orch.stop()
+
         if INTEGRATED_MODE and integrated_supervisor:
             await integrated_supervisor.stop()
         logger.info("Supervisor shutdown completed")

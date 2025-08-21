@@ -33,6 +33,10 @@
         .tree li { margin: 0.5em 0; }
         .tree-node { cursor: pointer; padding: 0.25em 0.5em; border-radius: 4px; }
         .tree-node:hover { background-color: #ddd; }
+
+        /* Orchestrator Styles */
+        #orchestrator-container { border-top: 2px solid #ccc; margin-top: 2em; padding-top: 2em; }
+        #agent-pool-display { background: #f8f9fa; border: 1px solid #ddd; padding: 1em; min-height: 100px; }
     </style>
 </head>
 <body>
@@ -133,6 +137,31 @@
             </div>
             <div id="debugger-tree-container">
                 <!-- Tree will be rendered here by JavaScript -->
+            </div>
+        </div>
+
+        <div id="orchestrator-container">
+            <h2>Autonomous Orchestrator</h2>
+            <div class="form-group">
+                <button id="register_agent_btn" style="background-color: #17a2b8;">Register Sample Agent</button>
+                <button id="refresh_orchestrator_status_btn" style="background-color: #6c757d;">Refresh Status</button>
+            </div>
+            <div id="agent-pool-display">
+                <p>Agent pool status will be displayed here.</p>
+            </div>
+            <hr style="margin: 2em 0;">
+            <h4>Submit New Goal</h4>
+            <div class="form-group">
+                <label for="goal_name">Goal Name:</label>
+                <input type="text" id="goal_name" style="width: 100%;" value="Scraping Script Project">
+            </div>
+            <div class="form-group">
+                <label for="goal_description">Goal Description:</label>
+                <textarea id="goal_description" rows="3" style="width: 100%;">Create a Python script that can scrape a website for news articles.</textarea>
+            </div>
+            <button id="submit_goal_btn" style="background-color: #0069d9;">Submit Goal</button>
+            <div id="task-graph-display" style="margin-top: 1em; background: #f8f9fa; border: 1px solid #ddd; padding: 1em;">
+                <p>New project plan will be displayed here.</p>
             </div>
         </div>
 
@@ -444,6 +473,124 @@
                     }
                 } catch (error) {
                     treeContainer.textContent = `Error: ${error.message}`;
+                }
+            });
+
+            // --- Orchestrator Logic ---
+            const registerAgentBtn = document.getElementById('register_agent_btn');
+            const refreshOrchestratorBtn = document.getElementById('refresh_orchestrator_status_btn');
+            const agentPoolDisplay = document.getElementById('agent-pool-display');
+
+            const refreshOrchestratorStatus = async () => {
+                try {
+                    const response = await callMcpTool('get_orchestrator_status', {});
+                    if (response.success) {
+                        // Render Agent Pool
+                        agentPoolDisplay.innerHTML = '<h4>Agent Pool</h4>';
+                        const agents = response.status.agents;
+                        if (agents.length === 0) {
+                            agentPoolDisplay.innerHTML += '<p>No agents registered.</p>';
+                        } else {
+                            const ul = document.createElement('ul');
+                            agents.forEach(agent => {
+                                const li = document.createElement('li');
+                                li.textContent = `ID: ${agent.agent_id} | Name: ${agent.name} | Status: ${agent.status} | Caps: [${agent.capabilities.join(', ')}]`;
+                                ul.appendChild(li);
+                            });
+                            agentPoolDisplay.appendChild(ul);
+                        }
+
+                        // Render Projects
+                        const projects = response.status.projects;
+                        if (projects.length > 0) {
+                             taskGraphDisplay.innerHTML = '<h4>Active Projects</h4>';
+                             projects.forEach(project => {
+                                const projectDiv = document.createElement('div');
+                                projectDiv.innerHTML = `<h5>${project.name} (Status: ${project.status})</h5>`;
+                                const ul = document.createElement('ul');
+                                for (const taskId in project.tasks) {
+                                    const task = project.tasks[taskId];
+                                    const li = document.createElement('li');
+                                    let depText = task.dependencies.length > 0 ? ` (depends on ${task.dependencies.join(', ')})` : '';
+                                    li.textContent = `[${task.status}] ${task.name}${depText}`;
+                                    if (task.status === 'RUNNING') li.style.fontWeight = 'bold';
+                                    if (task.status === 'COMPLETED') li.style.textDecoration = 'line-through';
+                                    if (task.status === 'FAILED') li.style.color = 'red';
+                                    ul.appendChild(li);
+                                }
+                                projectDiv.appendChild(ul);
+                                taskGraphDisplay.appendChild(projectDiv);
+                             });
+                        }
+
+                    } else {
+                        agentPoolDisplay.textContent = `Error: ${response.error}`;
+                    }
+                } catch (error) {
+                    agentPoolDisplay.textContent = `Error: ${error.message}`;
+                }
+            };
+
+            registerAgentBtn.addEventListener('click', async () => {
+                registerAgentBtn.textContent = 'Registering...';
+                try {
+                    const agentId = `agent-${Math.random().toString(36).substr(2, 5)}`;
+                    const response = await callMcpTool('register_agent', {
+                        agent_id: agentId,
+                        name: "Coder Agent",
+                        capabilities: ["python", "file_io", "test_execution"]
+                    });
+                    if (response.success) {
+                        await refreshOrchestratorStatus();
+                    } else {
+                        alert(`Error registering agent: ${response.error}`);
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    registerAgentBtn.textContent = 'Register Sample Agent';
+                }
+            });
+
+            refreshOrchestratorBtn.addEventListener('click', refreshOrchestratorStatus);
+
+            // Initial status load and polling
+            refreshOrchestratorStatus();
+            setInterval(refreshOrchestratorStatus, 5000); // Refresh every 5 seconds
+
+            // --- Goal Submission Logic ---
+            const goalNameInput = document.getElementById('goal_name');
+            const goalDescInput = document.getElementById('goal_description');
+            const submitGoalBtn = document.getElementById('submit_goal_btn');
+            const taskGraphDisplay = document.getElementById('task-graph-display');
+
+            submitGoalBtn.addEventListener('click', async () => {
+                submitGoalBtn.textContent = 'Submitting...';
+                taskGraphDisplay.innerHTML = '<p>Generating plan...</p>';
+                try {
+                    const response = await callMcpTool('submit_goal', {
+                        name: goalNameInput.value,
+                        description: goalDescInput.value
+                    });
+                    if (response.success) {
+                        taskGraphDisplay.innerHTML = `<h4>Project Plan: ${response.project.name}</h4>`;
+                        const tasks = response.project.tasks;
+                        const ul = document.createElement('ul');
+                        for (const taskId in tasks) {
+                            const task = tasks[taskId];
+                            const li = document.createElement('li');
+                            let depText = task.dependencies.length > 0 ? ` (depends on ${task.dependencies.join(', ')})` : '';
+                            li.textContent = `[${task.status}] ${task.name}${depText}`;
+                            ul.appendChild(li);
+                        }
+                        taskGraphDisplay.appendChild(ul);
+                    } else {
+                        taskGraphDisplay.innerHTML = `<p style="color: red;">Error: ${response.error}</p>`;
+                    }
+                } catch (error) {
+                    taskGraphDisplay.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                } finally {
+                    submitGoalBtn.textContent = 'Submit Goal';
                 }
             });
         });
