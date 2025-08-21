@@ -13,10 +13,11 @@ class Action(Enum):
 @dataclass
 class AgentState:
     """Represents the state of the agent being supervised at a point in time."""
-    quality_score: float  # A score from 0.0 to 1.0 representing output quality
-    error_count: int      # Number of errors in the recent history
-    resource_usage: float # A normalized score for resource consumption (e.g., tokens)
-    task_progress: float  # Estimated progress towards task completion (0.0 to 1.0)
+    quality_score: float
+    error_count: int
+    resource_usage: float
+    task_progress: float
+    drift_score: float = 0.0 # A score from 0.0 (no drift) to 1.0 (high drift)
 
     def is_terminal(self) -> bool:
         """Determines if the state is a terminal state (e.g., task complete or failed)."""
@@ -46,9 +47,10 @@ class ExpectimaxAgent:
 
         # Final tuned weights
         score = (
-            (state.quality_score * 70) +
-            (state.task_progress * 30) -
-            (state.error_count * 200) -    # Extremely high penalty for errors
+            (state.quality_score * 60) +
+            (state.task_progress * 20) -
+            (state.drift_score * 100) - # Penalize task drift
+            (state.error_count * 200) -
             (state.resource_usage * 40)
         )
         return score

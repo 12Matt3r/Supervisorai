@@ -23,6 +23,7 @@ from monitoring.pattern_learner import PatternLearner
 from reporting.audit_logger import AuditLogger
 from reporting.audit_system import AuditEventType, AuditLevel
 from .expectimax_agent import ExpectimaxAgent, AgentState, Action
+from task_coherence.coherence_analyzer import CoherenceAnalyzer
 
 
 class SupervisorCore:
@@ -35,6 +36,7 @@ class SupervisorCore:
         # Core components
         self.quality_analyzer = QualityAnalyzer()
         self.pattern_learner = PatternLearner(str(self.data_dir / "patterns.json"))
+        self.coherence_analyzer = CoherenceAnalyzer()
         self.audit_logger = AuditLogger(str(self.data_dir / "audit.jsonl")) # Legacy logger
         self.expectimax_agent = ExpectimaxAgent(depth=2)
         self.audit_system = audit_system # New, more comprehensive audit system
@@ -113,10 +115,16 @@ class SupervisorCore:
         )
         
         task.quality_metrics = quality_metrics
+
+        # Analyze task coherence
+        coherence_analysis = self.coherence_analyzer.analyze(
+            output=output,
+            original_goals=task.instructions
+        )
         
         # Check for intervention requirements
         intervention_result = await self._check_intervention_needed(
-            task, output, quality_metrics
+            task, output, quality_metrics, coherence_analysis
         )
         
         # Store output and intervention result
@@ -171,9 +179,10 @@ class SupervisorCore:
         self,
         task: AgentTask,
         output: str,
-        quality_metrics: QualityMetrics
+        quality_metrics: QualityMetrics,
+        coherence_analysis: Dict
     ) -> Dict[str, Any]:
-        """Determine if intervention is needed using the Minimax agent."""
+        """Determine if intervention is needed using the Expectimax agent."""
         
         max_tokens = getattr(self.monitoring_rules, 'max_token_threshold', 10000)
         if max_tokens == 0: max_tokens = 10000
@@ -182,7 +191,8 @@ class SupervisorCore:
             quality_score=quality_metrics.confidence_score,
             error_count=len([i for i in task.interventions if i["level"] == "ESCALATION"]),
             resource_usage=task.resource_usage.token_count / max_tokens,
-            task_progress=len(task.outputs) / 10.0
+            task_progress=len(task.outputs) / 10.0,
+            drift_score=coherence_analysis["drift_score"]
         )
 
         decision_data = self.expectimax_agent.get_best_action(current_state)
