@@ -24,4 +24,4 @@ if [ -z "$LOG_LEVEL" ]; then
 fi
 
 # Start STDIO mode MCP server
-uv run server.py
+uv run src/server/main.py

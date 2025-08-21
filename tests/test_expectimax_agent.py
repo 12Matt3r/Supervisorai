@@ -82,6 +82,53 @@ class TestExpectimaxAgent(unittest.TestCase):
 
         self.assertIn(best_action, [Action.WARN, Action.ALLOW], "Should WARN or ALLOW on a resource issue state.")
 
+    def test_get_best_action_with_trace_structure(self):
+        """
+        Test that get_best_action_with_trace returns the expected data structure.
+        """
+        state = AgentState(
+            quality_score=0.7,
+            error_count=1,
+            resource_usage=0.4,
+            task_progress=0.3,
+            drift_score=0.2
+        )
+
+        result = self.agent.get_best_action_with_trace(state)
+
+        # Check top-level keys
+        self.assertIn("best_action", result)
+        self.assertIn("best_score", result)
+        self.assertIn("trace", result)
+        self.assertIsInstance(result['best_action'], Action)
+        self.assertIsInstance(result['best_score'], float)
+
+        # Check root of the trace
+        trace = result['trace']
+        self.assertIn("name", trace)
+        self.assertIn("state", trace)
+        self.assertIn("evaluation", trace)
+        self.assertIn("children", trace)
+        self.assertIsInstance(trace['children'], list)
+
+        # Check a first-level child (an action node)
+        if len(trace['children']) > 0:
+            action_node = trace['children'][0]
+            self.assertIn("name", action_node)
+            self.assertIn("action", action_node)
+            self.assertIn("score", action_node)
+            self.assertIn("children", action_node)
+            self.assertIsInstance(action_node['children'], list)
+
+            # Check a second-level child (an outcome node)
+            if len(action_node['children']) > 0:
+                outcome_node = action_node['children'][0]
+                self.assertIn("name", outcome_node)
+                self.assertIn("probability", outcome_node)
+                self.assertIn("state", outcome_node)
+                self.assertIn("children", outcome_node)
+                self.assertIsInstance(outcome_node['children'], list)
+
 
 if __name__ == '__main__':
     unittest.main()

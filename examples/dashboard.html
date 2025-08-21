@@ -22,6 +22,17 @@
         .slider-value { font-weight: normal; color: #007bff; margin-left: 1em; }
         #log-container { margin-top: 2em; }
         #log-display { background-color: #222; color: #0f0; font-family: monospace; padding: 1em; border-radius: 4px; height: 300px; overflow-y: scroll; white-space: pre-wrap; }
+
+        /* Debugger Styles */
+        #debugger-container { border-top: 2px solid #ccc; margin-top: 2em; padding-top: 2em; }
+        .debugger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2em; }
+        #debugger-tree-container { background: #f8f9fa; border: 1px solid #ddd; padding: 1em; height: 500px; overflow: auto; }
+        #debugger-inspector { background: #e9ecef; border: 1px solid #ddd; padding: 1em; height: 500px; overflow: auto; }
+        #debugger-inspector h4 { margin-top: 0; }
+        .tree ul { padding-left: 2em; list-style-type: none; border-left: 1px solid #ccc; }
+        .tree li { margin: 0.5em 0; }
+        .tree-node { cursor: pointer; padding: 0.25em 0.5em; border-radius: 4px; }
+        .tree-node:hover { background-color: #ddd; }
     </style>
 </head>
 <body>
@@ -87,6 +98,44 @@
                 </div>
             </div>
         </div>
+
+        <div id="debugger-container">
+            <h2>Interactive Debugger</h2>
+            <div class="debugger-grid">
+                <div id="debugger-controls">
+                    <h3>What-if Scenario</h3>
+                    <div class="form-group">
+                        <label for="dbg_quality_score">Quality Score: <span id="dbg_quality_score_value" class="slider-value">0.8</span></label>
+                        <input type="range" id="dbg_quality_score" min="0" max="1" step="0.01" value="0.8">
+                    </div>
+                    <div class="form-group">
+                        <label for="dbg_resource_usage">Resource Usage: <span id="dbg_resource_usage_value" class="slider-value">0.5</span></label>
+                        <input type="range" id="dbg_resource_usage" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="dbg_task_progress">Task Progress: <span id="dbg_task_progress_value" class="slider-value">0.6</span></label>
+                        <input type="range" id="dbg_task_progress" min="0" max="1" step="0.01" value="0.6">
+                    </div>
+                     <div class="form-group">
+                        <label for="dbg_drift_score">Drift Score: <span id="dbg_drift_score_value" class="slider-value">0.1</span></label>
+                        <input type="range" id="dbg_drift_score" min="0" max="1" step="0.01" value="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="dbg_error_count">Error Count:</label>
+                        <input type="number" id="dbg_error_count" min="0" max="10" value="1">
+                    </div>
+                    <button id="get_trace_btn" style="background-color: #fd7e14;">Generate Debug Trace</button>
+                </div>
+                <div id="debugger-inspector">
+                    <h4>Node Inspector</h4>
+                    <p>Click on a node in the tree to see its details here.</p>
+                </div>
+            </div>
+            <div id="debugger-tree-container">
+                <!-- Tree will be rendered here by JavaScript -->
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -310,6 +359,93 @@
 
             // Initial load
             fetchDashboardData();
+
+            // --- Interactive Debugger Logic ---
+            const dbgQualitySlider = document.getElementById('dbg_quality_score');
+            const dbgResourceSlider = document.getElementById('dbg_resource_usage');
+            const dbgProgressSlider = document.getElementById('dbg_task_progress');
+            const dbgDriftSlider = document.getElementById('dbg_drift_score');
+            const dbgErrorInput = document.getElementById('dbg_error_count');
+            const getTraceBtn = document.getElementById('get_trace_btn');
+            const treeContainer = document.getElementById('debugger-tree-container');
+            const inspectorPanel = document.getElementById('debugger-inspector');
+
+            dbgQualitySlider.oninput = () => document.getElementById('dbg_quality_score_value').textContent = dbgQualitySlider.value;
+            dbgResourceSlider.oninput = () => document.getElementById('dbg_resource_usage_value').textContent = dbgResourceSlider.value;
+            dbgProgressSlider.oninput = () => document.getElementById('dbg_task_progress_value').textContent = dbgProgressSlider.value;
+            dbgDriftSlider.oninput = () => document.getElementById('dbg_drift_score_value').textContent = dbgDriftSlider.value;
+
+            const renderTree = (node, parentElement) => {
+                const li = document.createElement('li');
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = 'tree-node';
+                nodeDiv.textContent = node.name;
+
+                // Store data for the inspector
+                nodeDiv.dataset.state = JSON.stringify(node.state || {});
+                nodeDiv.dataset.evaluation = JSON.stringify(node.evaluation || {});
+
+                li.appendChild(nodeDiv);
+
+                if (node.children && node.children.length > 0) {
+                    const ul = document.createElement('ul');
+                    node.children.forEach(child => renderTree(child, ul));
+                    li.appendChild(ul);
+                }
+                parentElement.appendChild(li);
+            };
+
+            const updateInspector = (state, evaluation) => {
+                inspectorPanel.innerHTML = '<h4>Node Inspector</h4>';
+                if (!state || Object.keys(state).length === 0) {
+                    inspectorPanel.innerHTML += '<p>No state data for this node.</p>';
+                    return;
+                }
+
+                let content = '<h5>State:</h5>';
+                content += `<pre>${JSON.stringify(state, null, 2)}</pre>`;
+
+                if (evaluation && Object.keys(evaluation).length > 0) {
+                    content += '<h5>Evaluation:</h5>';
+                    content += `<pre>${JSON.stringify(evaluation, null, 2)}</pre>`;
+                }
+                inspectorPanel.innerHTML += content;
+            };
+
+            treeContainer.addEventListener('click', (e) => {
+                const nodeDiv = e.target.closest('.tree-node');
+                if (nodeDiv) {
+                    const state = JSON.parse(nodeDiv.dataset.state);
+                    const evaluation = JSON.parse(nodeDiv.dataset.evaluation);
+                    updateInspector(state, evaluation);
+                }
+            });
+
+            getTraceBtn.addEventListener('click', async () => {
+                treeContainer.innerHTML = 'Generating trace...';
+                inspectorPanel.innerHTML = '<h4>Node Inspector</h4><p>Click on a node in the tree to see its details here.</p>';
+                try {
+                    const response = await callMcpTool('get_decision_trace', {
+                        quality_score: parseFloat(dbgQualitySlider.value),
+                        error_count: parseInt(dbgErrorInput.value, 10),
+                        resource_usage: parseFloat(dbgResourceSlider.value),
+                        task_progress: parseFloat(dbgProgressSlider.value),
+                        drift_score: parseFloat(dbgDriftSlider.value)
+                    });
+
+                    if (response.success) {
+                        treeContainer.innerHTML = ''; // Clear
+                        const rootUl = document.createElement('ul');
+                        rootUl.className = 'tree';
+                        renderTree(response.trace, rootUl);
+                        treeContainer.appendChild(rootUl);
+                    } else {
+                        treeContainer.textContent = `Error: ${response.error}`;
+                    }
+                } catch (error) {
+                    treeContainer.textContent = `Error: ${error.message}`;
+                }
+            });
         });
     </script>
 

@@ -45,7 +45,7 @@ try:
         MonitoringRules, EscalationConfig, TaskStatus, 
         InterventionLevel, KnowledgeBaseEntry
     )
-    from supervisor_agent.minimax_agent import AgentState
+    from supervisor_agent.expectimax_agent import AgentState
     from idea_validation.validator import Validator
     from idea_validation.data_models import Idea
     INTEGRATED_MODE = True
@@ -478,39 +478,71 @@ async def get_minimax_decision(
     quality_score: float,
     error_count: int,
     resource_usage: float,
-    task_progress: float
+    task_progress: float,
+    drift_score: float = 0.0
 ) -> str:
-    """Get a supervisor decision from the Minimax agent."""
+    """Get a supervisor decision from the Expectimax agent."""
     try:
         supervisor = await get_supervisor_instance()
 
-        if not hasattr(supervisor, 'minimax_agent'):
-            # The basic supervisor (SupervisorCore) has the minimax_agent
-            if hasattr(supervisor, 'supervisor_core') and hasattr(supervisor.supervisor_core, 'minimax_agent'):
-                 minimax_agent = supervisor.supervisor_core.minimax_agent
-            else:
-                return json.dumps({"success": False, "error": "Minimax agent not available in the current supervisor instance."})
-        else:
-            minimax_agent = supervisor.minimax_agent
+        # The agent is now on the SupervisorCore instance
+        if not hasattr(supervisor, 'expectimax_agent'):
+            return json.dumps({"success": False, "error": "Expectimax agent not available in the current supervisor instance."})
+
+        agent = supervisor.expectimax_agent
 
         state = AgentState(
             quality_score=quality_score,
             error_count=error_count,
             resource_usage=resource_usage,
-            task_progress=task_progress
+            task_progress=task_progress,
+            drift_score=drift_score
         )
 
-        best_action = minimax_agent.get_best_action(state)
+        decision_data = agent.get_best_action(state)
 
         return json.dumps({
             "success": True,
-            "decision": best_action.value,
+            "decision": decision_data['best_action'].value,
+            "score": decision_data['best_score'],
             "timestamp": datetime.utcnow().isoformat()
         })
 
     except Exception as e:
-        logger.error(f"Minimax decision failed: {e}")
+        logger.error(f"Expectimax decision failed: {e}")
         return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def get_decision_trace(
+    quality_score: float,
+    error_count: int,
+    resource_usage: float,
+    task_progress: float,
+    drift_score: float = 0.0
+) -> str:
+    """Get a full decision trace from the Expectimax agent."""
+    try:
+        supervisor = await get_supervisor_instance()
+        if not hasattr(supervisor, 'expectimax_agent'):
+            return json.dumps({"success": False, "error": "Expectimax agent not available."})
+
+        agent = supervisor.expectimax_agent
+        state = AgentState(
+            quality_score=quality_score,
+            error_count=error_count,
+            resource_usage=resource_usage,
+            task_progress=task_progress,
+            drift_score=drift_score
+        )
+
+        trace_data = agent.get_best_action_with_trace(state)
+
+        return json.dumps({"success": True, "trace": trace_data['trace']})
+
+    except Exception as e:
+        logger.error(f"Failed to get decision trace: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
 
 @mcp.tool
 async def get_decision_logs(limit: int = 50) -> str:
@@ -563,6 +595,72 @@ async def validate_idea(
     except Exception as e:
         logger.error(f"Idea validation failed: {e}")
         return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def submit_feedback(
+    event_id: str,
+    corrected_action: str,
+    decision_context: Dict[str, Any]
+) -> str:
+    """Submits user feedback on a supervisor decision."""
+    try:
+        feedback_file = Path("supervisor_data") / "feedback.json"
+
+        new_feedback = {
+            "event_id": event_id,
+            "corrected_action": corrected_action,
+            "original_decision": decision_context.get("action"),
+            "decision_context": decision_context.get("minimax_details", {}),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        all_feedback = []
+        if feedback_file.exists():
+            with open(feedback_file, 'r') as f:
+                try:
+                    all_feedback = json.load(f)
+                except json.JSONDecodeError:
+                    all_feedback = []
+
+        all_feedback.append(new_feedback)
+
+        with open(feedback_file, 'w') as f:
+            json.dump(all_feedback, f, indent=2)
+
+        return json.dumps({"success": True, "message": "Feedback submitted successfully."})
+
+    except Exception as e:
+        logger.error(f"Failed to submit feedback: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def run_training() -> str:
+    """Triggers the feedback-based training process for the supervisor agent."""
+    try:
+        supervisor = await get_supervisor_instance()
+        if not isinstance(supervisor, SupervisorCore):
+            return json.dumps({"success": False, "error": "Training is only available for the basic SupervisorCore."})
+
+        from supervisor_agent.feedback_trainer import FeedbackTrainer
+
+        feedback_file = "supervisor_data/feedback.json"
+        current_weights = supervisor.weights
+
+        trainer = FeedbackTrainer(feedback_file, current_weights)
+        new_weights = trainer.train_on_feedback()
+
+        supervisor.update_weights(new_weights)
+
+        return json.dumps({
+            "success": True,
+            "message": "Training complete. Weights updated.",
+            "new_weights": new_weights
+        })
+
+    except Exception as e:
+        logger.error(f"Training run failed: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
 
 # ============================================================================
 # LEGACY MCP TOOLS - BACKWARD COMPATIBILITY 

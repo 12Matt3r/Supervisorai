@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import List, Dict, Any
 
@@ -53,13 +53,14 @@ class ExpectimaxAgent:
                 self.weights[key] /= total_weight
 
 
-    def _evaluate_state(self, state: AgentState) -> float:
+    def _evaluate_state(self, state: AgentState) -> Dict[str, Any]:
         """
         The evaluation function for a given state.
-        A higher score is better (0-1 range).
+        Returns a dictionary with the score and the features used.
         """
         if state.is_terminal():
-            return 1.0 if state.task_progress >= 1.0 else 0.0
+            score = 1.0 if state.task_progress >= 1.0 else 0.0
+            return {"score": score, "features": {"is_terminal": True, "progress": state.task_progress}}
 
         # Transform features to be "higher is better" in a 0-1 range
         features = {
@@ -73,7 +74,7 @@ class ExpectimaxAgent:
         # Calculate weighted sum
         score = sum(self.weights[key] * features[key] for key in self.weights)
 
-        return score
+        return {"score": score, "features": features}
 
     def _get_possible_actions(self, state: AgentState) -> List[Action]:
         """Returns a list of sensible actions based on the current state."""
@@ -189,7 +190,7 @@ class ExpectimaxAgent:
     def _get_action_value(self, state: AgentState, action: Action, depth: int, alpha: float, beta: float) -> float:
         """Calculates the expected value of a single action."""
         if depth == 0 or state.is_terminal():
-            return self._evaluate_state(state)
+            return self._evaluate_state(state)['score']
 
         outcomes = self._get_action_outcomes(state, action)
         expected_value = 0
@@ -236,4 +237,94 @@ class ExpectimaxAgent:
             "best_score": best_score,
             "considered_actions": sorted(considered_actions, key=lambda x: x['score'], reverse=True),
             "state_evaluated": state
+        }
+
+
+    def _get_action_value_with_trace(self, state: AgentState, action: Action, depth: int) -> tuple[float, Dict[str, Any]]:
+        """
+        Calculates the expected value of a single action and returns a trace.
+        """
+        evaluation = self._evaluate_state(state)
+
+        if depth == 0 or state.is_terminal():
+            trace = {
+                "name": f"Terminal (Score: {evaluation['score']:.2f})",
+                "state": asdict(state),
+                "evaluation": evaluation,
+                "children": []
+            }
+            return evaluation['score'], trace
+
+        outcomes = self._get_action_outcomes(state, action)
+        expected_value = 0
+        outcome_traces = []
+
+        for probability, next_state in outcomes:
+            # Find the value of the best action from the next state.
+            max_next_eval = -math.inf
+            best_next_action_trace = {}
+
+            for next_action in self._get_possible_actions(next_state):
+                # Recursive call to get the value and trace of the sub-problem
+                evaluation_score, sub_trace = self._get_action_value_with_trace(next_state, next_action, depth - 1)
+
+                if evaluation_score > max_next_eval:
+                    max_next_eval = evaluation_score
+                    best_next_action_trace = {
+                        "name": f"Action: {next_action.value} (Value: {evaluation_score:.2f})",
+                        "state": asdict(next_state),
+                        "evaluation": self._evaluate_state(next_state),
+                        "children": sub_trace.get('children', [])
+                    }
+
+            outcome_node = {
+                "name": f"Outcome (Prob: {probability:.2f})",
+                "probability": probability,
+                "state": asdict(next_state),
+                "children": [best_next_action_trace] if best_next_action_trace else []
+            }
+            outcome_traces.append(outcome_node)
+            expected_value += probability * max_next_eval
+
+        return expected_value, {"children": outcome_traces}
+
+
+    def get_best_action_with_trace(self, state: AgentState) -> Dict[str, Any]:
+        """
+        Finds the best action and returns a full trace of the decision process.
+        """
+        best_score = -math.inf
+        best_action = None
+
+        root_trace = {
+            "name": f"Initial State (Score: {self._evaluate_state(state)['score']:.2f})",
+            "state": asdict(state),
+            "evaluation": self._evaluate_state(state),
+            "children": []
+        }
+
+        for action in self._get_possible_actions(state):
+            score, trace_children = self._get_action_value_with_trace(state, action, self.depth)
+
+            action_node = {
+                "name": f"Action: {action.value} (Exp. Score: {score:.2f})",
+                "action": action.value,
+                "score": score,
+                "children": trace_children.get('children', [])
+            }
+            root_trace["children"].append(action_node)
+
+            if score > best_score:
+                best_score = score
+                best_action = action
+
+        best_action = best_action or Action.ALLOW
+
+        # Sort children by score for readability
+        root_trace["children"].sort(key=lambda x: x['score'], reverse=True)
+
+        return {
+            "best_action": best_action,
+            "best_score": best_score,
+            "trace": root_trace
         }
