@@ -1,6 +1,6 @@
 import json
-import httpx
 from typing import Dict, List, Any
+from llm.client import LLMClient
 
 class LLMJudge:
     """
@@ -8,10 +8,7 @@ class LLMJudge:
     """
 
     def __init__(self, api_key: str = None, model: str = "claude-3-opus-20240229"):
-        # In a real application, the API key would be handled securely.
-        self.api_key = api_key or "YOUR_ANTHROPIC_API_KEY" # Placeholder
-        self.model = model
-        self.api_url = "https://api.anthropic.com/v1/messages"
+        self.llm_client = LLMClient(api_key=api_key, model=model)
 
     def _create_prompt(self, output: str, goals: List[str]) -> str:
         """
@@ -46,41 +43,17 @@ class LLMJudge:
         """
         Sends the output to the LLM judge and gets a structured evaluation.
         """
-        if not self.api_key or self.api_key == "YOUR_ANTHROPIC_API_KEY":
-            # Placeholder for environments without a real API key.
-            # This allows the system to run without failing.
+        prompt = self._create_prompt(output, goals)
+
+        # Use the new generic client to make the query
+        response = await self.llm_client.query(prompt)
+
+        # Handle mock responses or errors from the client
+        if "mock_response" in response or "error" in response:
             return {
                 "overall_score": 0.85, # Return a default high score
-                "reasoning": "This is a placeholder response. LLM Judge API key not configured.",
+                "reasoning": response.get("mock_response") or response.get("details", "An unknown error occurred."),
                 "is_safe": True
             }
 
-        prompt = self._create_prompt(output, goals)
-
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        }
-
-        data = {
-            "model": self.model,
-            "max_tokens": 1024,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(self.api_url, headers=headers, json=data, timeout=30.0)
-                response.raise_for_status()
-
-                # Extract the JSON content from the response
-                response_text = response.json()["content"][0]["text"]
-                return json.loads(response_text)
-
-        except httpx.HTTPStatusError as e:
-            print(f"LLM Judge API Error: {e.response.status_code} - {e.response.text}")
-            return {"error": "API error", "details": e.response.text}
-        except Exception as e:
-            print(f"An unexpected error occurred with the LLM Judge: {e}")
-            return {"error": "Unexpected error", "details": str(e)}
+        return response

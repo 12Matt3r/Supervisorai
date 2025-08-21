@@ -71,7 +71,7 @@ class TestLLMJudge(unittest.TestCase):
         result = asyncio.run(judge_no_key.evaluate_output(output, goals))
 
         self.assertEqual(result["overall_score"], 0.85)
-        self.assertIn("placeholder response", result["reasoning"])
+        self.assertIn("LLM client is not configured", result["reasoning"])
 
 if __name__ == '__main__':
     unittest.main()
