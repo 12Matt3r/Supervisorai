@@ -49,6 +49,7 @@ try:
     from idea_validation.validator import Validator
     from idea_validation.data_models import Idea
     from orchestrator.core import Orchestrator
+from llm.client import LLMClient
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -70,15 +71,13 @@ def get_orchestrator_instance() -> Orchestrator:
     """Get the singleton orchestrator instance, creating it if necessary."""
     global orchestrator
     if orchestrator is None:
-        # The orchestrator needs a supervisor to function.
-        # We need to ensure the supervisor is initialized first.
-        # This is a bit tricky due to async/sync mixing.
-        # For now, we assume get_supervisor_instance has been called.
+        # The orchestrator needs a supervisor and an LLM client to function.
         if basic_supervisor is None and integrated_supervisor is None:
              raise RuntimeError("Supervisor must be initialized before the orchestrator.")
 
         supervisor = integrated_supervisor if INTEGRATED_MODE else basic_supervisor
-        orchestrator = Orchestrator(supervisor=supervisor)
+        llm_client = LLMClient() # Assumes API key is in env or will be mocked
+        orchestrator = Orchestrator(supervisor=supervisor, llm_client=llm_client)
     return orchestrator
 
 async def get_supervisor_instance():

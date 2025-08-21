@@ -1,10 +1,14 @@
-from typing import Dict, List
+from typing import Dict, List, Any
 import threading
 import time
 import asyncio
+import json
+import dataclasses
 
 from .models import ManagedAgent, AgentStatus, ProjectGoal, OrchestrationTask, TaskStatus
+from .prompts import get_decomposition_prompt
 from supervisor_agent.core import SupervisorCore
+from llm.client import LLMClient
 
 class Orchestrator:
     """
@@ -12,8 +16,9 @@ class Orchestrator:
     and orchestrates their execution.
     """
 
-    def __init__(self, supervisor: SupervisorCore):
+    def __init__(self, supervisor: SupervisorCore, llm_client: LLMClient):
         self.supervisor = supervisor
+        self.llm_client = llm_client
         self.agent_pool: Dict[str, ManagedAgent] = {}
         self.projects: Dict[str, ProjectGoal] = {}
         self._lock = threading.Lock()
@@ -75,30 +80,55 @@ class Orchestrator:
 
     # --- Goal and Task Management ---
 
-    def submit_goal(self, goal_name: str, goal_description: str) -> ProjectGoal:
+    async def submit_goal(self, goal_name: str, goal_description: str) -> ProjectGoal:
         """
-        Accepts a new project goal, decomposes it into tasks,
+        Accepts a new project goal, uses an LLM to decompose it into tasks,
         and adds it to the orchestrator.
         """
         with self._lock:
             goal_id = f"goal-{len(self.projects) + 1}"
             project = ProjectGoal(goal_id=goal_id, name=goal_name, description=goal_description)
 
-            # Simple rule-based decomposition based on keywords
-            # This would be a much more complex system in a real application (e.g., using an LLM)
-            if "script" in goal_description.lower() and "scrape" in goal_description.lower():
-                # Template for a "Scraping Script" project
-                task1 = OrchestrationTask(task_id=f"{goal_id}-t1", name="Write Scraper Code", description="Write the main Python script for scraping.", required_capabilities=["python", "file_io"])
-                task2 = OrchestrationTask(task_id=f"{goal_id}-t2", name="Write Unit Tests", description="Write tests for the scraper script.", required_capabilities=["python", "test_execution"], dependencies={task1.task_id})
-                task3 = OrchestrationTask(task_id=f"{goal_id}-t3", name="Generate Report", description="Summarize the scraped data and methodology.", required_capabilities=["text_analysis"], dependencies={task1.task_id})
-                project.tasks = {t.task_id: t for t in [task1, task2, task3]}
-            else:
-                # Default simple task
-                task1 = OrchestrationTask(task_id=f"{goal_id}-t1", name="Execute Goal", description=goal_description, required_capabilities=["general"])
-                project.tasks = {task1.task_id: task1}
+            # Get available agents for the prompt
+            agents_info = [dataclasses.asdict(a) for a in self.list_agents()]
 
+        # Generate the prompt for the LLM
+        prompt = get_decomposition_prompt(goal_description, agents_info)
+
+        # Query the LLM
+        print("Querying LLM for task decomposition...")
+        llm_response = await self.llm_client.query(prompt, max_tokens=2048)
+
+        if "error" in llm_response or "tasks" not in llm_response:
+            print(f"Error from LLM or invalid format: {llm_response}")
+            raise ValueError("Failed to get a valid task plan from the LLM.")
+
+        # Validate and create task objects from the LLM response
+        created_tasks: Dict[str, OrchestrationTask] = {}
+        llm_tasks = llm_response.get("tasks", {})
+
+        for task_id, task_data in llm_tasks.items():
+            # Basic validation
+            if not all(k in task_data for k in ["name", "description", "required_capabilities", "dependencies"]):
+                print(f"Skipping malformed task from LLM: {task_id}")
+                continue
+
+            new_task = OrchestrationTask(
+                task_id=task_id,
+                name=task_data["name"],
+                description=task_data["description"],
+                required_capabilities=task_data["required_capabilities"],
+                dependencies=set(task_data["dependencies"])
+            )
+            created_tasks[task_id] = new_task
+
+        if not created_tasks:
+            raise ValueError("LLM returned a plan with no valid tasks.")
+
+        with self._lock:
+            project.tasks = created_tasks
             self.projects[project.goal_id] = project
-            print(f"Project goal submitted and decomposed: {project.name}")
+            print(f"Project goal submitted and decomposed by LLM: {project.name}")
             return project
 
     def get_project_status(self, goal_id: str) -> ProjectGoal | None:

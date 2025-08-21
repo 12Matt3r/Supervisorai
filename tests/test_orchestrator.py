@@ -7,22 +7,30 @@ import os
 # Add the 'src' directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
+import json
+from unittest.mock import MagicMock, AsyncMock, patch
+
 from orchestrator.core import Orchestrator
 from orchestrator.models import ManagedAgent, AgentStatus, ProjectGoal, TaskStatus
 from supervisor_agent.core import SupervisorCore
+from llm.client import LLMClient
 
 class TestOrchestrator(unittest.TestCase):
     """Test suite for the Orchestrator."""
 
     def setUp(self):
-        """Set up a new Orchestrator and a mock Supervisor for each test."""
-        # We need a mock SupervisorCore that has the methods the orchestrator calls.
+        """Set up a new Orchestrator and mock dependencies for each test."""
         self.mock_supervisor = MagicMock(spec=SupervisorCore)
-        # Mock the async methods on the supervisor
-        self.mock_supervisor.monitor_agent = MagicMock()
-        self.mock_supervisor.validate_output = MagicMock()
+        self.mock_supervisor.monitor_agent = AsyncMock()
+        self.mock_supervisor.validate_output = AsyncMock()
 
-        self.orchestrator = Orchestrator(supervisor=self.mock_supervisor)
+        self.mock_llm_client = MagicMock(spec=LLMClient)
+        self.mock_llm_client.query = AsyncMock()
+
+        self.orchestrator = Orchestrator(
+            supervisor=self.mock_supervisor,
+            llm_client=self.mock_llm_client
+        )
 
     def test_register_agent(self):
         """Test that an agent can be registered successfully."""
@@ -32,31 +40,60 @@ class TestOrchestrator(unittest.TestCase):
         self.assertIsNotNone(agent)
         self.assertEqual(agent.name, "TestAgent")
 
-    def test_submit_goal_decomposition(self):
-        """Test that a goal is decomposed into the correct tasks and dependencies."""
-        # Use the predefined "scraping script" template
-        project = self.orchestrator.submit_goal(
-            "Scraping Project",
-            "Create a Python script that can scrape a website."
-        )
+    def test_submit_goal_llm_decomposition(self):
+        """Test that the orchestrator correctly parses an LLM-generated plan."""
+        # --- Setup Mock LLM Response ---
+        mock_llm_response = {
+            "tasks": {
+                "task_1_write_code": {
+                    "name": "Write the scraper code",
+                    "description": "Write a Python script using BeautifulSoup to scrape the data.",
+                    "required_capabilities": ["python", "file_io"],
+                    "dependencies": []
+                },
+                "task_2_write_tests": {
+                    "name": "Write unit tests",
+                    "description": "Write tests for the Python scraper script.",
+                    "required_capabilities": ["python", "test_execution"],
+                    "dependencies": ["task_1_write_code"]
+                }
+            }
+        }
+        self.mock_llm_client.query.return_value = mock_llm_response
 
-        self.assertEqual(len(project.tasks), 3)
+        # --- Execute ---
+        async def run_test():
+            return await self.orchestrator.submit_goal(
+                "Test Scraping Project",
+                "Scrape a website for data."
+            )
+        project = asyncio.run(run_test())
 
-        task1 = project.tasks[f"{project.goal_id}-t1"]
-        task2 = project.tasks[f"{project.goal_id}-t2"]
+        # --- Assertions ---
+        self.mock_llm_client.query.assert_called_once()
+        self.assertEqual(len(project.tasks), 2)
 
-        self.assertEqual(task1.name, "Write Scraper Code")
+        task1 = project.tasks["task_1_write_code"]
+        task2 = project.tasks["task_2_write_tests"]
+
+        self.assertEqual(task1.name, "Write the scraper code")
         self.assertEqual(len(task1.dependencies), 0)
 
-        self.assertEqual(task2.name, "Write Unit Tests")
-        self.assertIn(task1.task_id, task2.dependencies)
+        self.assertEqual(task2.name, "Write unit tests")
+        self.assertIn("task_1_write_code", task2.dependencies)
 
     def test_get_ready_tasks(self):
         """Test the logic for identifying tasks ready for execution."""
-        project = self.orchestrator.submit_goal(
-            "Test Project",
-            "A test script project for scraping." # Triggers the template
-        )
+        mock_llm_response = {
+            "tasks": {
+                "task1": {"name": "Task 1", "description": "", "required_capabilities": [], "dependencies": []},
+                "task2": {"name": "Task 2", "description": "", "required_capabilities": [], "dependencies": ["task1"]},
+                "task3": {"name": "Task 3", "description": "", "required_capabilities": [], "dependencies": ["task1"]}
+            }
+        }
+        self.mock_llm_client.query.return_value = mock_llm_response
+
+        project = asyncio.run(self.orchestrator.submit_goal("Test", "Test"))
 
         # Initially, only the task with no dependencies should be ready
         ready_tasks = project.get_ready_tasks()
@@ -106,9 +143,18 @@ class TestOrchestrator(unittest.TestCase):
         }
 
         self.orchestrator.register_agent("agent-1", "MultiAgent", ["python", "file_io", "test_execution"])
-        project = self.orchestrator.submit_goal("Test Project", "A test script project for scraping.")
-        task1_id = f"{project.goal_id}-t1"
-        task2_id = f"{project.goal_id}-t2"
+
+        mock_llm_response = {
+            "tasks": {
+                "task_code": {"name": "Write Code", "description": "", "required_capabilities": ["python"], "dependencies": []},
+                "task_test": {"name": "Write Tests", "description": "", "required_capabilities": ["test_execution"], "dependencies": ["task_code"]}
+            }
+        }
+        self.mock_llm_client.query.return_value = mock_llm_response
+        project = asyncio.run(self.orchestrator.submit_goal("Test Project", "Test"))
+
+        task1_id = "task_code"
+        task2_id = "task_test"
 
         # --- Execution ---
         self.orchestrator.start()
