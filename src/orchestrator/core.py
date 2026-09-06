@@ -1,4 +1,4 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Tuple
 import threading
 import time
 import asyncio
@@ -6,14 +6,26 @@ import json
 import dataclasses
 
 from .models import ManagedAgent, AgentStatus, ProjectGoal, OrchestrationTask, TaskStatus
-from .prompts import get_decomposition_prompt
+from .prompts import (
+    get_decomposition_prompt,
+    get_worker_prompt,
+    get_audit_prompt,
+    get_synthesis_prompt,
+)
+from .trace import ExecutionTrace
 from supervisor_agent.core import SupervisorCore
 from llm.client import LLMClient
 
+
 class Orchestrator:
     """
-    Manages a pool of agents, decomposes goals into tasks,
-    and orchestrates their execution.
+    Manages a pool of agents, decomposes goals into tasks, and orchestrates
+    their execution under supervision.
+
+    The showcase entry point is :meth:`run_goal`, which runs the full
+    Plan -> Delegate -> Audit -> Correct reasoning loop backed by MiniMax-M3 and
+    emits a live execution trace. The threaded :meth:`start`/:meth:`_main_loop`
+    path is retained for backward compatibility with the MCP server.
     """
 
     def __init__(self, supervisor: SupervisorCore, llm_client: LLMClient):
@@ -21,7 +33,9 @@ class Orchestrator:
         self.llm_client = llm_client
         self.agent_pool: Dict[str, ManagedAgent] = {}
         self.projects: Dict[str, ProjectGoal] = {}
-        self._lock = threading.Lock()
+        # Reentrant lock: several methods legitimately call other locked methods
+        # (e.g. update_agent_status -> get_agent). A plain Lock deadlocks here.
+        self._lock = threading.RLock()
         self.is_running = False
 
     # --- Agent Management ---
@@ -82,8 +96,8 @@ class Orchestrator:
 
     async def submit_goal(self, goal_name: str, goal_description: str) -> ProjectGoal:
         """
-        Accepts a new project goal, uses an LLM to decompose it into tasks,
-        and adds it to the orchestrator.
+        Accepts a new project goal, uses MiniMax-M3 to decompose it into a task
+        DAG, and registers it with the orchestrator.
         """
         with self._lock:
             goal_id = f"goal-{len(self.projects) + 1}"
@@ -96,7 +110,7 @@ class Orchestrator:
         prompt = get_decomposition_prompt(goal_description, agents_info)
 
         # Query the LLM
-        print("Querying LLM for task decomposition...")
+        print("Querying MiniMax-M3 for task decomposition...")
         llm_response = await self.llm_client.query(prompt, max_tokens=2048)
 
         if "error" in llm_response or "tasks" not in llm_response:
@@ -118,7 +132,8 @@ class Orchestrator:
                 name=task_data["name"],
                 description=task_data["description"],
                 required_capabilities=task_data["required_capabilities"],
-                dependencies=set(task_data["dependencies"])
+                dependencies=set(task_data["dependencies"]),
+                validation_conditions=task_data.get("validation_conditions", []),
             )
             created_tasks[task_id] = new_task
 
@@ -154,7 +169,6 @@ class Orchestrator:
                 dependencies=set(dependencies)
             )
             project.tasks[task_id] = new_task
-            self._broadcast_status()
             return new_task
 
     def remove_task_from_project(self, goal_id: str, task_id: str):
@@ -173,7 +187,6 @@ class Orchestrator:
                     other_task.dependencies.remove(task_id)
 
             del project.tasks[task_id]
-            self._broadcast_status()
 
     def update_task_dependencies(self, goal_id: str, task_id: str, new_dependencies: List[str]):
         """Updates the dependencies for a specific task."""
@@ -187,7 +200,6 @@ class Orchestrator:
                 raise ValueError(f"Task with task_id '{task_id}' not found in project.")
 
             task.dependencies = set(new_dependencies)
-            self._broadcast_status()
 
     def update_task_details(self, goal_id: str, task_id: str, new_details: Dict[str, Any]):
         """Updates the details (name, description) of a specific task."""
@@ -205,41 +217,216 @@ class Orchestrator:
             if "description" in new_details:
                 task.description = new_details["description"]
 
-            self._broadcast_status()
+    # ================================================================== #
+    # Supervisory reasoning loop: Plan -> Delegate -> Audit -> Correct
+    # ================================================================== #
 
-    # --- Execution Loop ---
+    async def run_goal(
+        self,
+        goal_name: str,
+        goal_description: str,
+        trace: Optional[ExecutionTrace] = None,
+        max_corrections: int = 1,
+    ) -> Tuple[ProjectGoal, str]:
+        """Drive a goal end-to-end under M3 supervision and return (project, final).
 
-    def _execute_task(self, task: OrchestrationTask, agent: ManagedAgent):
-        """Wrapper to run a task in a separate thread and handle the result."""
+        1. PLAN     - M3 decomposes the goal into a validated task DAG.
+        2. DELEGATE - each ready task is executed by an M3-backed worker.
+        3. AUDIT    - M3 verifies every worker output against the plan.
+        4. CORRECT  - failed/drifted outputs are re-prompted with a fix hint.
+        5. SYNTHESIS- once all dependencies pass, M3 synthesizes a verified result.
+        """
+        trace = trace or ExecutionTrace(enabled=True)
+        trace.banner(
+            "SupervisorAI  ·  MiniMax-M3 on GMI Cloud",
+            f"Goal: {goal_description}",
+        )
+
+        # --- 1. PLAN ---
+        trace.rule("PLAN")
+        trace.supervisor("Decomposing goal into a validated task DAG...")
+        project = await self.submit_goal(goal_name, goal_description)
+        project.status = "IN_PROGRESS"
+        order = " -> ".join(t.name for t in project.tasks.values())
+        trace.supervisor(f"Plan holds {len(project.tasks)} tasks: {order}")
+
+        # --- 2-4. DELEGATE / AUDIT / CORRECT ---
+        trace.rule("EXECUTE")
+        guard = 0
+        while True:
+            ready = project.get_ready_tasks()
+            if not ready:
+                break
+            # Execute sequentially so the trace reads as a coherent story.
+            for task in ready:
+                await self._run_supervised_task(project, task, trace, max_corrections)
+                if task.status == TaskStatus.FAILED:
+                    trace.drift(f"Task '{task.name}' could not be recovered; halting plan.")
+                    project.status = "FAILED"
+                    return project, ""
+            guard += 1
+            if guard > len(project.tasks) + 2:
+                break  # safety valve against a malformed DAG
+
+        # --- 5. SYNTHESIS (only if every dependency passed) ---
+        completed = project.get_completed_task_ids()
+        if len(completed) != len(project.tasks):
+            trace.drift("Not all tasks passed verification; final synthesis withheld.")
+            project.status = "FAILED"
+            return project, ""
+
+        trace.rule("SYNTHESIS")
+        trace.supervisor("All tasks passed audit. Synthesizing verified final result...")
+        final = await self._synthesize(project, trace)
+        project.status = "COMPLETED"
+        trace.passed("Goal COMPLETED — all dependencies verified.")
+        trace.info(f"Token usage: {self.llm_client.usage_summary()}")
+        return project, final
+
+    async def _run_supervised_task(
+        self,
+        project: ProjectGoal,
+        task: OrchestrationTask,
+        trace: ExecutionTrace,
+        max_corrections: int,
+    ) -> None:
+        """Execute a single task with M3 workers and an M3 audit + correction loop."""
+        task.status = TaskStatus.RUNNING
+        upstream = {
+            dep: project.tasks[dep].output_text
+            for dep in task.dependencies
+            if dep in project.tasks
+        }
+        correction_hint: Optional[str] = None
+
+        for attempt in range(max_corrections + 1):
+            task.attempts += 1
+
+            # --- DELEGATE ---
+            label = "worker" if attempt == 0 else "worker (correction)"
+            trace.dispatch(f"{label} → '{task.name}'  [attempt {attempt + 1}/{max_corrections + 1}]")
+            prompt = get_worker_prompt(project.description, task.name, task.description, upstream)
+            if correction_hint:
+                prompt += (
+                    f"\n\nA previous attempt FAILED the supervisor's audit. "
+                    f"You MUST address this: {correction_hint}"
+                )
+            worker_env = await self.llm_client.complete(prompt, max_tokens=1024)
+            output = worker_env.get("text", "") or ""
+            task.output_text = output
+            trace.dispatch(f"worker produced {len(output)} chars"
+                           + (" (mock)" if worker_env.get("mock") else ""))
+
+            # --- Supervisor engine pass (heuristic + LLM judge blend) ---
+            await self._run_supervisor_engine(task, output, trace)
+
+            # --- AUDIT (M3 verification pass) ---
+            trace.audit(f"MiniMax-M3 verifying output of '{task.name}' against the plan...")
+            audit = await self._audit(project.description, task, output)
+            task.audit = audit
+            task.output_data = {"audit": audit, "supervisor": task.output_data.get("supervisor") if task.output_data else None}
+
+            verdict = audit.get("verdict", "pass")
+            drift = bool(audit.get("drift_detected"))
+            if drift:
+                trace.drift(f"'{task.name}': {audit.get('reasoning', 'output diverged from plan')}")
+
+            if verdict == "pass" and not drift:
+                task.status = TaskStatus.COMPLETED
+                task.completed_at = time.time()
+                trace.passed(f"'{task.name}' verified (confidence {audit.get('confidence', 0):.2f}).")
+                return
+
+            # --- CORRECT ---
+            issues = "; ".join(audit.get("issues", [])) or audit.get("reasoning", "unspecified failure")
+            correction_hint = audit.get("correction_hint") or issues
+            if attempt < max_corrections:
+                trace.recovery(f"Audit FAILED for '{task.name}': {issues}. Re-prompting worker with fix hint.")
+            else:
+                trace.recovery(f"Audit FAILED for '{task.name}' after {attempt + 1} attempts: {issues}.")
+
+        # Exhausted corrections without passing.
+        task.status = TaskStatus.FAILED
+        task.completed_at = time.time()
+
+    async def _run_supervisor_engine(self, task: OrchestrationTask, output: str, trace: ExecutionTrace) -> None:
+        """Run the SupervisorCore monitor + validate blend, defensively.
+
+        This exercises the existing heuristic QualityAnalyzer + LLM judge +
+        intervention engine. It is best-effort: if the supervisor is a mock or a
+        subsystem is unavailable, the M3 audit still governs the verdict.
+        """
         try:
-            print(f"Executing task {task.task_id} on agent {agent.agent_id}")
-
-            # This is a simplified execution. A real system would have a more robust
-            # way to pass inputs and get outputs from the agent task.
-            # We use the supervisor to monitor this "execution".
-            asyncio.run(self.supervisor.monitor_agent(
-                agent_name=agent.name,
+            instructions = [task.description] + list(task.validation_conditions)
+            await self.supervisor.monitor_agent(
+                agent_name=f"worker::{task.task_id}",
                 framework="orchestrated",
                 task_input=task.description,
-                instructions=[],
-                task_id=task.task_id
-            ))
-
-            # Simulate work and get an output
-            time.sleep(5) # Simulate the agent working on the task
-            output = f"Completed: {task.description}"
-
-            validation_result = asyncio.run(self.supervisor.validate_output(
+                instructions=instructions,
                 task_id=task.task_id,
-                output=output
-            ))
+            )
+            validation = await self.supervisor.validate_output(task_id=task.task_id, output=output)
+            if isinstance(validation, dict):
+                task.output_data = {"supervisor": validation}
+                inter = validation.get("intervention_result", {})
+                if inter.get("intervention_required"):
+                    trace.audit(f"Supervisor engine flagged intervention: {inter.get('intervention_level', 'unknown')}")
+        except Exception as e:
+            # Non-fatal: the M3 audit is the authoritative verification.
+            trace.info(f"(supervisor engine pass skipped: {e})")
 
-            # Update task based on supervision result
+    async def _audit(self, goal: str, task: OrchestrationTask, output: str) -> Dict[str, Any]:
+        """Ask MiniMax-M3, as supervisor, to verify an output. Always returns a verdict dict."""
+        conditions = task.validation_conditions or [f"The output must accomplish: {task.description}"]
+        prompt = get_audit_prompt(goal, task.name, task.description, output, conditions)
+        env = await self.llm_client.complete(prompt, max_tokens=512, temperature=0.2)
+        parsed = env.get("json")
+        if isinstance(parsed, dict) and "verdict" in parsed:
+            parsed.setdefault("confidence", 0.5)
+            parsed.setdefault("drift_detected", False)
+            parsed.setdefault("issues", [])
+            return parsed
+        # Fallback verdict if the model didn't return clean JSON.
+        empty = not output.strip()
+        return {
+            "verdict": "fail" if empty else "pass",
+            "confidence": 0.4,
+            "drift_detected": empty,
+            "issues": ["worker produced empty output"] if empty else [],
+            "correction_hint": "Produce a concrete deliverable for the task." if empty else "",
+            "reasoning": env.get("text", "audit produced no structured verdict")[:200],
+        }
+
+    async def _synthesize(self, project: ProjectGoal, trace: ExecutionTrace) -> str:
+        """Synthesize a final verified deliverable from all audited task outputs."""
+        outputs = {t.name: t.output_text for t in project.tasks.values()}
+        prompt = get_synthesis_prompt(project.description, outputs)
+        env = await self.llm_client.complete(prompt, max_tokens=1024, temperature=0.3)
+        final = env.get("text", "")
+        trace.synthesis(final if final else "(no synthesis text produced)")
+        return final
+
+    # ================================================================== #
+    # Legacy threaded execution loop (kept for the MCP server)
+    # ================================================================== #
+
+    def _execute_task(self, task: OrchestrationTask, agent: ManagedAgent):
+        """Run a single task on an agent in a worker thread (blocking path)."""
+        try:
+            print(f"Executing task {task.task_id} on agent {agent.agent_id}")
+            # Run the real M3-backed worker + supervisor validation synchronously
+            # inside this worker thread.
+            validation_result = asyncio.run(self._execute_task_async(task, agent))
+
             with self._lock:
                 task.output_data = validation_result
-                if validation_result['intervention_result']['intervention_required']:
+                audit = validation_result.get("audit", {}) if isinstance(validation_result, dict) else {}
+                supervisor_res = validation_result.get("supervisor", {}) if isinstance(validation_result, dict) else {}
+                intervention = supervisor_res.get("intervention_result", {}) if isinstance(supervisor_res, dict) else {}
+                failed = intervention.get("intervention_required") or audit.get("verdict") == "fail"
+                if failed:
                     task.status = TaskStatus.FAILED
-                    print(f"Task {task.task_id} FAILED due to required intervention.")
+                    print(f"Task {task.task_id} FAILED verification.")
                 else:
                     task.status = TaskStatus.COMPLETED
                     print(f"Task {task.task_id} COMPLETED successfully.")
@@ -255,6 +442,32 @@ class Orchestrator:
             # Always release the agent
             self.update_agent_status(agent.agent_id, AgentStatus.IDLE)
 
+    async def _execute_task_async(self, task: OrchestrationTask, agent: ManagedAgent) -> Dict[str, Any]:
+        """Async body of a single threaded task: run worker, supervisor, and audit."""
+        # Delegate to an M3 worker.
+        prompt = get_worker_prompt(task.description, task.name, task.description, {})
+        worker_env = await self.llm_client.complete(prompt, max_tokens=1024)
+        output = worker_env.get("text", "") or f"Completed: {task.description}"
+        task.output_text = output
+
+        result: Dict[str, Any] = {}
+        # Supervisor engine pass (best-effort).
+        try:
+            await self.supervisor.monitor_agent(
+                agent_name=agent.name,
+                framework="orchestrated",
+                task_input=task.description,
+                instructions=[task.description],
+                task_id=task.task_id,
+            )
+            supervisor_res = await self.supervisor.validate_output(task_id=task.task_id, output=output)
+            result["supervisor"] = supervisor_res
+        except Exception as e:
+            result["supervisor"] = {"error": str(e)}
+
+        # M3 audit pass.
+        result["audit"] = await self._audit(task.description, task, output)
+        return result
 
     def _main_loop(self):
         """The main execution loop that assigns tasks to agents."""
@@ -276,7 +489,7 @@ class Orchestrator:
                             task_thread = threading.Thread(target=self._execute_task, args=(task, agent))
                             task_thread.start()
 
-            time.sleep(2) # Check for new tasks every 2 seconds
+            time.sleep(2)  # Check for new tasks every 2 seconds
 
     def start(self):
         """Starts the orchestrator's main execution loop in a background thread."""

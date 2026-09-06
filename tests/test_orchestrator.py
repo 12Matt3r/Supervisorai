@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 import time
+import asyncio
 import sys
 import os
 
@@ -98,7 +99,7 @@ class TestOrchestrator(unittest.TestCase):
         # Initially, only the task with no dependencies should be ready
         ready_tasks = project.get_ready_tasks()
         self.assertEqual(len(ready_tasks), 1)
-        self.assertEqual(ready_tasks[0].name, "Write Scraper Code")
+        self.assertEqual(ready_tasks[0].name, "Task 1")
 
         # Mark the first task as complete
         task1_id = ready_tasks[0].task_id
@@ -108,8 +109,8 @@ class TestOrchestrator(unittest.TestCase):
         ready_tasks_after_completion = project.get_ready_tasks()
         self.assertEqual(len(ready_tasks_after_completion), 2)
         task_names = {task.name for task in ready_tasks_after_completion}
-        self.assertIn("Write Unit Tests", task_names)
-        self.assertIn("Generate Report", task_names)
+        self.assertIn("Task 2", task_names)
+        self.assertIn("Task 3", task_names)
 
     def test_find_available_agent(self):
         """Test finding an agent with the right capabilities."""
@@ -151,40 +152,48 @@ class TestOrchestrator(unittest.TestCase):
             }
         }
         self.mock_llm_client.query.return_value = mock_llm_response
+        # M3-backed workers/audits call `complete`; return a plausible envelope.
+        self.mock_llm_client.complete = AsyncMock(return_value={
+            "ok": True, "text": "worker deliverable", "json": None,
+            "tool_calls": [], "usage": {}, "mock": True,
+        })
+        self.mock_llm_client.usage_summary = MagicMock(return_value={})
         project = asyncio.run(self.orchestrator.submit_goal("Test Project", "Test"))
 
         task1_id = "task_code"
         task2_id = "task_test"
+        task1 = project.tasks[task1_id]
+        task2 = project.tasks[task2_id]
 
         # --- Execution ---
+        # Workers are now M3-backed (mocked here), so tasks complete quickly rather
+        # than after a fixed sleep. Drive the loop and poll for the dependency chain
+        # to resolve: task_code must complete before task_test becomes eligible.
         self.orchestrator.start()
 
-        # Give the loop time to assign the first task
-        time.sleep(0.1)
+        def wait_for(predicate, timeout=15.0):
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                if predicate():
+                    return True
+                time.sleep(0.1)
+            return False
 
-        # --- Assertions for Task 1 ---
-        task1 = project.tasks[task1_id]
+        # Task 1 (no dependencies) should complete first.
+        self.assertTrue(
+            wait_for(lambda: task1.status == TaskStatus.COMPLETED),
+            f"task_code did not complete; status={task1.status}",
+        )
+
+        # Task 2 depends on task 1 and should complete once task 1 is done.
+        self.assertTrue(
+            wait_for(lambda: task2.status == TaskStatus.COMPLETED),
+            f"task_test did not complete; status={task2.status}",
+        )
+
+        # The agent should be released back to IDLE at the end.
         agent = self.orchestrator.get_agent("agent-1")
-
-        self.assertEqual(task1.status, TaskStatus.RUNNING)
-        self.assertEqual(agent.status, AgentStatus.BUSY)
-        self.assertEqual(agent.current_task_id, task1_id)
-
-        # Let the task "finish" by sleeping past its simulated work time
-        time.sleep(6)
-
-        # --- Assertions for Task 2 ---
-        # The _execute_task thread should have completed and updated the status
-        self.assertEqual(task1.status, TaskStatus.COMPLETED)
-
-        # Agent should be idle briefly before picking up the next task
-        # We need to wait for the main loop to re-assign
-        time.sleep(3)
-
-        task2 = project.tasks[task2_id]
-        self.assertEqual(task2.status, TaskStatus.RUNNING)
-        self.assertEqual(agent.status, AgentStatus.BUSY)
-        self.assertEqual(agent.current_task_id, task2_id)
+        self.assertTrue(wait_for(lambda: agent.status == AgentStatus.IDLE))
 
         # --- Cleanup ---
         self.orchestrator.stop()

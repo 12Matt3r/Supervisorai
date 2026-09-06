@@ -15,6 +15,17 @@ env/
 .venv/
 .env/
 
+# Secrets — never commit real API keys
+.env
+.env.local
+*.env
+
+# Runtime artifacts
+supervisor_data/audit.jsonl
+supervisor_data/*.log
+supervisor.log
+*.pyc
+
 # IDE and editor files
 .idea/
 .vscode/

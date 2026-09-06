@@ -1,5 +1,91 @@
 from typing import List, Dict, Any
 
+
+def get_worker_prompt(goal: str, task_name: str, task_description: str,
+                      upstream: Dict[str, str]) -> str:
+    """Prompt a MiniMax-M3 worker to actually execute a single planned task.
+
+    ``upstream`` maps completed dependency task ids to their produced outputs so
+    the worker has the context it needs.
+    """
+    context = "\n".join(
+        f"- Output of '{dep}':\n{text[:1200]}" for dep, text in upstream.items()
+    ) or "(no upstream outputs; this is a starting task)"
+
+    return f"""You are a specialized worker agent executing ONE step of a larger plan.
+
+Overall goal:
+"{goal}"
+
+Your assigned task: {task_name}
+Task description: {task_description}
+
+Context from completed upstream tasks:
+{context}
+
+Produce the concrete deliverable for THIS task only. Be specific and actionable
+(code, a diff, a test, an analysis, or a summary as appropriate). Do not restate
+the instructions. If you make an assumption, state it explicitly.
+"""
+
+
+def get_audit_prompt(goal: str, task_name: str, task_description: str,
+                     output: str, validation_conditions: List[str]) -> str:
+    """Prompt MiniMax-M3, acting as the supervisor, to verify a worker's output.
+
+    Returns instructions for a strict JSON verdict the loop can branch on.
+    """
+    conditions = "\n".join(f"- {c}" for c in validation_conditions) or "- The output must satisfy the task description."
+    return f"""You are an impartial supervisor auditing a worker agent's output.
+
+Overall goal:
+"{goal}"
+
+Task under audit: {task_name}
+Task description: {task_description}
+
+Validation conditions this output MUST satisfy:
+{conditions}
+
+Worker's output:
+```
+{output[:4000]}
+```
+
+Audit the output. Check whether it (a) succeeds at the task, (b) contains any
+hallucination or factual/logical error, and (c) has drifted away from the plan.
+
+Respond with a SINGLE valid JSON object, no prose outside it:
+{{
+  "verdict": "pass" | "fail",
+  "confidence": <float 0.0-1.0>,
+  "drift_detected": <true|false>,
+  "issues": ["<short description of each problem, empty if none>"],
+  "correction_hint": "<if fail: a concrete instruction telling the worker how to fix it; else empty>",
+  "reasoning": "<one or two sentences>"
+}}
+"""
+
+
+def get_synthesis_prompt(goal: str, task_outputs: Dict[str, str]) -> str:
+    """Prompt MiniMax-M3 to synthesize a final, verified answer from all outputs."""
+    joined = "\n\n".join(
+        f"### {name}\n{text[:1500]}" for name, text in task_outputs.items()
+    )
+    return f"""You are the supervisor producing the final verified deliverable.
+
+Overall goal:
+"{goal}"
+
+All audited task outputs:
+{joined}
+
+Synthesize a single, coherent final result that fulfills the overall goal. Then
+add a short "Verification" section confirming every sub-task's contribution is
+consistent and the goal is met.
+"""
+
+
 def get_decomposition_prompt(goal: str, agents: List[Dict[str, Any]]) -> str:
     """
     Generates a prompt for the LLM to decompose a high-level goal into a task graph.

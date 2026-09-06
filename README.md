@@ -1,9 +1,113 @@
-# AI Supervisor & Orchestrator
-### *A Submission for the Minimax Agent Hackathon*
+# SupervisorAI
+
+> ## 🏆 **MiniMax Week Hackathon Entry — Track 1: Reasoning**
+> **An agent that holds a plan, delegates the work, and fact-checks itself.**
+> Powered by **MiniMax-M3** served on **GMI Cloud**.
 
 ---
 
-## 1. Project Overview
+## Problem statement
+
+Autonomous agents fail in a specific, expensive way: they *lose the plot*. A
+coding agent starts fixing a bug and quietly drifts into rewriting unrelated
+files; a research assistant confidently cites a source that says the opposite of
+what it claims; a multi-step task reports "done" while a dependency silently
+failed. The missing piece is not a bigger worker model — it is a **supervisor**
+that holds the plan, checks every step against it, and refuses to declare
+success until the work actually verifies.
+
+**SupervisorAI** is that supervisor. It uses MiniMax-M3's reasoning to run a
+closed loop over a team of workers:
+
+> **Plan → Delegate → Audit → Correct → (verified) Synthesis**
+
+M3 decomposes a goal into a validated task DAG, delegates each task to an
+M3-backed worker, then puts on its supervisor hat and audits every output
+against the plan — catching hallucinations, errors, and drift. Failed or drifted
+outputs are re-prompted with a concrete correction hint. Only when *every*
+dependency passes verification does the system synthesize a final, verified
+result. Every stage is streamed as a live, tagged execution trace.
+
+## Architecture
+
+```
+                        ┌─────────────────────────────────────────────┐
+                        │          SUPERVISOR  (MiniMax-M3)            │
+                        │   holds the plan · audits · self-corrects    │
+                        └───────────────┬─────────────────────────────┘
+              1. PLAN                   │   4. CORRECT (re-prompt on fail/drift)
+        decompose goal → DAG           │        ▲
+                        ┌──────────────▼────────┴──────────┐
+                        │        Orchestrator (DAG)         │
+                        │   get_ready_tasks() · dependencies│
+                        └───────┬─────────────────┬─────────┘
+                  2. DELEGATE   │                 │   3. AUDIT
+                                ▼                 ▼
+                        ┌───────────────┐   ┌─────────────────────────┐
+                        │  M3 Workers   │──▶│  Supervisor verification │
+                        │  (per task)   │   │  • M3 audit verdict      │
+                        │  via MCP      │   │  • QualityAnalyzer (heur)│
+                        └───────────────┘   │  • LLM judge (2nd opinion)│
+                                            │  • Coherence/drift check  │
+                                            └─────────────┬────────────┘
+                                                          │ all pass?
+                                                          ▼
+                                              5. VERIFIED SYNTHESIS
+```
+
+The single integration point is **`src/llm/client.py` (`LLMClient`)** — every
+LLM-using component (orchestrator decomposer, `LLMJudge`, `ResearchAssistor`)
+depends on it, so retargeting this one class flips the whole platform onto
+MiniMax-M3.
+
+## GMI Cloud / MiniMax-M3 integration
+
+| | |
+|---|---|
+| **Endpoint** | `https://api.gmi-serving.com/v1/messages` (Anthropic Messages-compatible) |
+| **Base URL** | `https://api.gmi-serving.com/v1` (env `GMI_BASE_URL`) |
+| **Model** | `MiniMaxAI/MiniMax-M3` (env `SUPERVISOR_MODEL`) |
+| **Auth** | `x-api-key: $GMI_API_KEY` and `Authorization: Bearer $GMI_API_KEY` (both sent) |
+
+`LLMClient` adds production concerns on top of the raw endpoint:
+retry with exponential backoff (on 429/5xx/network), token-budget accounting,
+robust structured-JSON extraction (handles ```json fences and embedded JSON),
+tool-calling pass-through, SSE streaming, and a **graceful, context-aware mock
+fallback** so the demo, tests, and MCP server never hard-crash when no key is
+set.
+
+## Quickstart
+
+```bash
+# 1. Install
+pip install -r requirements.txt
+
+# 2. Configure your GMI key
+cp .env.example .env      # then edit .env and paste your GMI_API_KEY
+#   (or just:  export GMI_API_KEY="<your key>")
+
+# 3. Run the turnkey demo — plan, delegate, audit, self-correct, verify
+python demo.py
+
+# 4. Run the test suite
+PYTHONPATH=src pytest tests/ -q
+
+# 5. (optional) Run the MCP server exposing the supervisor as tools
+PYTHONPATH=src python src/server/main.py
+```
+
+The demo runs a real scenario — an incoming bug report on a mock repo — and
+prints a live trace tagged `[SUPERVISOR - M3]`, `[DISPATCH]`, `[AUDIT]`,
+`[DRIFT DETECTED]`, `[RECOVERY]`, `[SYNTHESIS]`, finishing with a verified PR
+summary and a per-task audit ledger. With no `GMI_API_KEY` it still runs
+end-to-end on a deterministic mock so you can see the loop before wiring a key.
+
+> **Security note:** never commit your `GMI_API_KEY`. It belongs in `.env`
+> (gitignored) only. Rotate any key that has been shared in plaintext.
+
+---
+
+## Project Overview
 
 This project is a sophisticated, AI-powered system designed to supervise, manage, and assist other AI agents. It has evolved from a simple monitoring script into a multi-layered platform with advanced capabilities for intelligent oversight and autonomous operation.
 

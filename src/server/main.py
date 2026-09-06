@@ -49,7 +49,7 @@ try:
     from idea_validation.validator import Validator
     from idea_validation.data_models import Idea
     from orchestrator.core import Orchestrator
-from llm.client import LLMClient
+    from llm.client import LLMClient
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -739,7 +739,7 @@ async def submit_goal(name: str, description: str) -> str:
     """Submits a new high-level goal to the orchestrator."""
     try:
         orch = get_orchestrator_instance()
-        project = orch.submit_goal(name, description)
+        project = await orch.submit_goal(name, description)
         import dataclasses
         # Convert the project to a dict, but handle the nested tasks
         project_dict = dataclasses.asdict(project)
