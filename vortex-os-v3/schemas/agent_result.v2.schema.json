@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orchestrator.local/schemas/agent_result.v2.json",
+  "title": "Agent Result Envelope (v2)",
+  "description": "The contract every sub-agent MUST emit. Validated by lib/quality.sh.",
+  "type": "object",
+  "required": ["version", "agent", "task", "ok", "started_at", "ended_at", "duration_ms", "outputs", "metrics", "quality"],
+  "properties": {
+    "version":      { "type": "string", "const": "2.0" },
+    "agent": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name":     { "type": "string" },
+        "version":  { "type": "string" },
+        "persona":  { "type": "string", "description": "Persona pin #6" },
+        "adapter":  { "type": "string", "description": "LLM adapter chain #8" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id":       { "type": "string" },
+        "attempt":  { "type": "integer", "minimum": 1 },
+        "cancel_token": { "type": "string", "description": "#9 cancellation token id" }
+      }
+    },
+    "ok":           { "type": "boolean" },
+    "started_at":   { "type": "string", "format": "date-time" },
+    "ended_at":     { "type": "string", "format": "date-time" },
+    "duration_ms":  { "type": "integer", "minimum": 0 },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "files_created":   { "type": "array", "items": { "type": "string" } },
+        "files_modified":  { "type": "array", "items": { "type": "string" } },
+        "stdout_excerpt":  { "type": "string" },
+        "chunks_path":     { "type": "string", "description": "Streaming NDJSON #3" },
+        "memory_writes":   { "type": "object", "description": "Five-tier memory writes #2" }
+      },
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "tokens_in":       { "type": "integer", "minimum": 0 },
+        "tokens_out":      { "type": "integer", "minimum": 0 },
+        "cost_usd":        { "type": "number", "minimum": 0 },
+        "cache_hit_ratio": { "type": "number", "minimum": 0, "maximum": 1, "description": "#1 prompt-cache hit ratio" },
+        "tool_calls":      { "type": "integer", "minimum": 0, "description": "#26 tool-call budget" },
+        "retries":         { "type": "integer", "minimum": 0 },
+        "peak_rss_mb":     { "type": "number", "minimum": 0 },
+        "confidence":      { "type": "number", "minimum": 0, "maximum": 1, "description": "#29 confidence vote weight" },
+        "predicted_cost_usd": { "type": "number", "minimum": 0, "description": "#23 pre-flight estimate" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "properties": {
+        "score":         { "type": "number", "minimum": 0, "maximum": 1 },
+        "passed_gates":  { "type": "array", "items": { "type": "string" } },
+        "eval_score":    { "type": "number", "description": "#7 per-agent eval suite" }
+      }
+    },
+    "tracing": {
+      "type": "object",
+      "description": "#10 OTel GenAI spans",
+      "properties": {
+        "trace_id":    { "type": "string" },
+        "spans":       { "type": "array", "items": { "type": "object" } },
+        "exported_to": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "#5 capability negotiation",
+      "properties": {
+        "tools_used":  { "type": "array", "items": { "type": "string" } },
+        "constraints": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "secrets_referenced": { "type": "array", "items": { "type": "string" }, "description": "#11 per-secret approvals" },
+    "errors":              { "type": "array", "items": { "type": "string" } }
+  }
+}

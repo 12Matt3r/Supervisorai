@@ -1,0 +1,122 @@
+{
+  "name": "ops.deploy.k8s",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Deploys to Kubernetes via GitOps or argocd-flix. Plans safe rollouts (canary, blue/green), watches SLOs, auto-rolls back on breach.",
+  "entry": "templates/release.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "cluster",
+      "release_manifest"
+    ],
+    "properties": {
+      "cluster": {
+        "type": "string"
+      },
+      "release_manifest": {
+        "type": "string"
+      },
+      "strategy": {
+        "enum": [
+          "rolling",
+          "canary",
+          "bluegreen"
+        ],
+        "default": "canary"
+      },
+      "auto_rollback": {
+        "type": "boolean",
+        "default": true
+      },
+      "canary_pct": {
+        "type": "integer",
+        "default": 10
+      },
+      "slo_window_s": {
+        "type": "integer",
+        "default": 600
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "result",
+      "promoted",
+      "rollback_url"
+    ],
+    "properties": {
+      "result": {
+        "enum": [
+          "promoted",
+          "rolled_back",
+          "paused"
+        ]
+      },
+      "promoted": {
+        "type": "boolean"
+      },
+      "rollback_url": {
+        "type": "string"
+      },
+      "metrics_delta": {
+        "type": "object"
+      }
+    }
+  },
+  "writes": [
+    "k8s/**",
+    ".argocd/**"
+  ],
+  "reads": [
+    "k8s/**",
+    ".argocd/**",
+    "values.yaml"
+  ],
+  "resources": {
+    "cpu": "med",
+    "mem": "2Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential",
+    "on": [
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.85,
+    "max_latency_s": 1800,
+    "max_cost_usd": 0.5,
+    "must_have": [
+      "result",
+      "rollback_url"
+    ],
+    "must_not": [
+      "kubectl delete",
+      "kubectl drain"
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "ops.incident_responder"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

@@ -1,0 +1,115 @@
+{
+  "name": "ops.incident_responder",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Live incident response: pulls logs/metrics/traces, joins them on alert, drafts status updates, opens mitigation tasks, drives the war-room.",
+  "entry": "templates/incident_response.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "incident_id",
+      "alert_payload"
+    ],
+    "properties": {
+      "incident_id": {
+        "type": "string"
+      },
+      "alert_payload": {
+        "type": "object"
+      },
+      "severity": {
+        "enum": [
+          "sev1",
+          "sev2",
+          "sev3",
+          "sev4"
+        ],
+        "default": "sev2"
+      },
+      "runbook_hint": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "timeline",
+      "root_cause_hypothesis",
+      "status_update"
+    ],
+    "properties": {
+      "timeline": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "root_cause_hypothesis": {
+        "type": "string"
+      },
+      "status_update": {
+        "type": "string"
+      },
+      "mitigation_actions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "resolved": {
+        "type": "boolean"
+      }
+    }
+  },
+  "writes": [
+    "incidents/{{incident_id}}/timeline.md",
+    "incidents/{{incident_id}}/postmortem.md"
+  ],
+  "reads": [
+    "logs/**",
+    "metrics/**",
+    "traces/**",
+    "runbooks/**"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "4Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 3,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.85,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.6,
+    "must_have": [
+      "timeline",
+      "root_cause_hypothesis",
+      "status_update"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "ops.cost_optimizer"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

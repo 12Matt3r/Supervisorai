@@ -1,0 +1,134 @@
+{
+  "name": "coder.python",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Implements Python code (modules, scripts, classes) from a natural-language task description. Refactors, ports (Py2→Py3), and adds features with tests.",
+  "entry": "templates/coder.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "task_description",
+      "target_files"
+    ],
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "minLength": 10
+      },
+      "target_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "context": {
+        "type": "object"
+      },
+      "python_version": {
+        "type": "string",
+        "default": "3.12"
+      },
+      "style_guide": {
+        "enum": [
+          "pep8",
+          "black",
+          "ruff"
+        ],
+        "default": "ruff"
+      },
+      "test_framework": {
+        "enum": [
+          "pytest",
+          "unittest"
+        ],
+        "default": "pytest"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "diff",
+      "summary",
+      "tests_added"
+    ],
+    "properties": {
+      "diff": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "tests_added": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "coverage_pct": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100
+      }
+    }
+  },
+  "writes": [
+    "{{target_files}}",
+    "patch.diff",
+    "tests/**"
+  ],
+  "reads": [
+    "{{target_files}}",
+    "pyproject.toml",
+    "tests/**"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "4Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential",
+    "on": [
+      "timeout",
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.75,
+    "max_latency_s": 1800,
+    "max_cost_usd": 1.5,
+    "must_have": [
+      "diff",
+      "summary",
+      "tests_added"
+    ],
+    "must_not": [
+      "TODO:",
+      "FIXME:",
+      "XXX",
+      "print("
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "tester.mutation"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

@@ -1,0 +1,94 @@
+{
+  "name": "tester.mutation",
+  "version": "2.0.0",
+  "kind": "shell",
+  "description": "Runs mutation testing (mutmut / Stryker / mull) to gauge test-suite strength, then writes candidate tests that kill surviving mutants.",
+  "entry": "scripts/mutation_runner.sh",
+  "writes": [
+    "mutation-report.json",
+    "tests/**"
+  ],
+  "reads": [
+    "src/**",
+    "tests/**",
+    "package.json",
+    "pyproject.toml"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "scope": {
+        "type": "string",
+        "default": "src/**"
+      },
+      "target_kill_pct": {
+        "type": "number",
+        "default": 75
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "mutation_score",
+      "killed",
+      "survived"
+    ],
+    "properties": {
+      "mutation_score": {
+        "type": "number"
+      },
+      "killed": {
+        "type": "integer"
+      },
+      "survived": {
+        "type": "integer"
+      },
+      "new_tests": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "resources": {
+    "cpu": "high",
+    "mem": "8Gi",
+    "net": "offline",
+    "gpu": 0
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.6,
+    "max_latency_s": 3600,
+    "max_cost_usd": 0.1,
+    "must_have": [
+      "mutation_score"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "qa.flakehunter"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

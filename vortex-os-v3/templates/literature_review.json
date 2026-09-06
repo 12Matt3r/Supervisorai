@@ -1,0 +1,35 @@
+{
+  "name": "literature_review",
+  "description": "Three subtopic researchers + one academic review synthesis.",
+  "tags": ["research","academic","review"],
+  "tasks": [
+    {
+      "id": "r_subtopic_1",
+      "description": "Survey the literature on subtopic #1 of {{TOPIC}} from the past {{YEARS}} years.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/subtopic_1.md"
+    },
+    {
+      "id": "r_subtopic_2",
+      "description": "Survey the literature on subtopic #2 of {{TOPIC}} from the past {{YEARS}} years.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/subtopic_2.md"
+    },
+    {
+      "id": "r_subtopic_3",
+      "description": "Survey the literature on subtopic #3 of {{TOPIC}} from the past {{YEARS}} years.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/subtopic_3.md"
+    },
+    {
+      "id": "w_review",
+      "description": "Synthesize the three literature surveys into a citation-ready review.",
+      "agent_role": "documentation",
+      "depends_on": ["r_subtopic_1","r_subtopic_2","r_subtopic_3"],
+      "output_path": "./deliverables/review.md"
+    }
+  ]
+}

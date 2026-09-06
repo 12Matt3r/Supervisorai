@@ -1,0 +1,126 @@
+{
+  "name": "writer.docs",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Technical documentation writer: API reference, tutorials, runbooks, ADRs. Maintains an internal 'voice' style and example corpus.",
+  "entry": "http://mcp.local:7474/tools/write_docs",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "topic",
+      "audience"
+    ],
+    "properties": {
+      "topic": {
+        "type": "string"
+      },
+      "audience": {
+        "enum": [
+          "developer",
+          "operator",
+          "end_user",
+          "executive"
+        ],
+        "default": "developer"
+      },
+      "format": {
+        "enum": [
+          "mdx",
+          "md",
+          "rst",
+          "html"
+        ],
+        "default": "mdx"
+      },
+      "length": {
+        "enum": [
+          "short",
+          "medium",
+          "long"
+        ],
+        "default": "medium"
+      },
+      "include_diagrams": {
+        "type": "boolean",
+        "default": true
+      },
+      "voice": {
+        "type": "string",
+        "default": "Google"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "markdown",
+      "outline",
+      "reading_time_min"
+    ],
+    "properties": {
+      "markdown": {
+        "type": "string"
+      },
+      "outline": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "reading_time_min": {
+        "type": "integer"
+      },
+      "diagrams": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "writes": [
+    "docs/{{slug}}.mdx"
+  ],
+  "reads": [
+    "docs/style-guide.md"
+  ],
+  "resources": {
+    "cpu": "med",
+    "mem": "2Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.8,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.3,
+    "must_have": [
+      "markdown",
+      "outline"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "writer.commit"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

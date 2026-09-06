@@ -19,12 +19,11 @@ class TestInteractiveEditing(unittest.TestCase):
         asyncio.set_event_loop(self.loop)
 
         mock_supervisor = MagicMock()
-        mock_llm_manager = MagicMock()
+        mock_llm_client = MagicMock()
 
         self.orchestrator = Orchestrator(
             supervisor=mock_supervisor,
-            llm_manager=mock_llm_manager,
-            loop=self.loop
+            llm_client=mock_llm_client,
         )
 
         # Create a sample project for testing

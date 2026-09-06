@@ -1,0 +1,95 @@
+{
+  "name": "qa.flakehunter",
+  "version": "2.0.0",
+  "kind": "shell",
+  "description": "Detects, ranks, and quarantines flaky tests. Replays failing tests N times, computes pass rate, identifies patterns (timing, network, order).",
+  "entry": "scripts/flake_runner.sh",
+  "writes": [
+    "flake-report.md",
+    ".orchestr8r/quarantine.json"
+  ],
+  "reads": [
+    "tests/**",
+    "junit-*.xml",
+    "ci-runs/"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "iterations": {
+        "type": "integer",
+        "default": 50
+      },
+      "concurrency": {
+        "type": "integer",
+        "default": 4
+      },
+      "fail_threshold": {
+        "type": "number",
+        "default": 0.1
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "flaky_tests"
+    ],
+    "properties": {
+      "flaky_tests": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "patterns": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "auto_fixes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "resources": {
+    "cpu": "high",
+    "mem": "4Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 1800,
+    "max_cost_usd": 0.05,
+    "must_have": [
+      "flaky_tests",
+      "patterns"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

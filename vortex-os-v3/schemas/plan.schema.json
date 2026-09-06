@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Orchestration Plan",
+  "description": "Defines the shape of a plan.json file managed by orchestrator_skill v2.",
+  "type": "object",
+  "required": ["plan_id", "tasks"],
+  "properties": {
+    "plan_id":     { "type": "string", "pattern": "^plan_[0-9_]+$" },
+    "parent_plan_id": { "type": "string", "description": "If set, this plan is a sub-plan of the named parent." },
+    "sub_plan_ids":   { "type": "array",  "items": { "type": "string" }, "description": "Sub-plan ids this plan has spawned." },
+    "goal":        { "type": "string" },
+    "created_at":  { "type": "string", "format": "date-time" },
+    "sealed":      { "type": "boolean" },
+    "sealed_at":   { "type": "string", "format": "date-time" },
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/task" }
+    }
+  },
+  "definitions": {
+    "task": {
+      "type": "object",
+      "required": ["id", "agent_role", "status"],
+      "additionalProperties": true,
+      "properties": {
+        "id":          { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "agent_role":  { "type": "string" },
+        "depends_on":  { "type": "array", "items": { "type": "string" } },
+        "status": {
+          "type": "string",
+          "enum": ["pending","ready","dispatched","running","complete","failed","sealed","skipped","escalated"]
+        },
+        "input":           { "type": ["object","array","string","number","boolean","null"] },
+        "output_path":     { "type": "string" },
+        "started_at":      { "type": "string", "format": "date-time" },
+        "completed_at":    { "type": "string", "format": "date-time" },
+        "attempts":        { "type": "integer", "minimum": 0 },
+        "notes":           { "type": "string" },
+        "handoff":         { "type": "string", "enum": ["one_way","bidirectional","fan_in","none"] },
+        "retry_policy": {
+          "type": "object",
+          "properties": {
+            "max_attempts":      { "type": "integer", "minimum": 1 },
+            "base_delay_s":      { "type": "number",   "minimum": 0 },
+            "max_delay_s":       { "type": "number",   "minimum": 0 },
+            "jitter":            { "type": "boolean" },
+            "error_class_filter":{ "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "validate_cmd":        { "type": "string" },
+            "validate_tool":       { "type": "string" },
+            "validate_rubric":     { "type": "string" },
+            "validate_min_score":  { "type": "number" }
+          }
+        },
+        "task_cost_usd":   { "type": "number", "minimum": 0 },
+        "task_tokens_used":{ "type": "integer", "minimum": 0 },
+        "task_duration_ms":{ "type": "integer", "minimum": 0 },
+        "expected_duration_minutes": { "type": "number", "minimum": 0 },
+
+        "tool_budget":      { "type": "integer", "description": "#26 tool-call budget" },
+        "persona":          { "type": "string",  "description": "#6 persona pin" },
+        "adapter":          { "type": "string",  "description": "#8 LLM adapter chain" },
+        "sandbox":          { "enum": ["host","docker","microvm"], "default": "host", "description": "#19 microVM sandbox" },
+        "cancel_on_signal": { "type": "string",  "description": "#9 cooperative cancellation" },
+        "memory_inherit":   { "type": "boolean", "description": "#17 cross-plan carryover" },
+        "predicted_cost_usd":{ "type": "number", "description": "#23 pre-flight estimate" },
+        "needs_secret_approval": { "type": "array", "items": { "type": "string" }, "description": "#11" },
+        "condition": { "type": "object", "description": "#22 conditional routing" },
+        "shadow":    { "type": "object", "description": "#25 shadow routing" },
+        "on_fail": {
+          "type": "object", "description": "#24 mid-plan replanning",
+          "properties": {
+            "branch":     { "type": "string" },
+            "max_wait_s": { "type": "integer", "default": 60 }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "global_limits": {
+      "type": "object",
+      "description": "#18 cost governor / #15 backpressure",
+      "properties": {
+        "max_total_runtime_s": { "type": "integer" },
+        "max_total_cost_usd":  { "type": "number" },
+        "warn_pct":            { "type": "number", "default": 80 },
+        "abort_pct":           { "type": "number", "default": 100 },
+        "max_in_flight":       { "type": "integer" },
+        "queue_depth_warn":    { "type": "integer" },
+        "parallelism":         { "type": "integer" }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "description": "#13/#14 learning router + soft-skills",
+      "properties": {
+        "strategy":  { "enum": ["static","learning","pareto"], "default": "learning" },
+        "epsilon":   { "type": "number", "default": 0.1 },
+        "success_threshold": { "type": "number", "default": 0.6 }
+      }
+    },
+    "fallback_strategy": {
+      "type": "object", "description": "#C graceful degradation",
+      "properties": {
+        "chain": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

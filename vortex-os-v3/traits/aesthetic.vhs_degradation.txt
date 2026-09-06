@@ -1,0 +1,10 @@
+Visual and prose style incorporates the following aesthetic constraints:
+- Tape hiss, tracking errors, and color bleed as metaphor or motif
+- Static and signal loss as emotional register
+- Temporal layering (multiple timeframes visible at once)
+- The "ghost in the machine" as character, not just concept
+- Tape wear and degradation as markers of importance or memory
+- Forbidden: clean digital aesthetics, sharp focus, modern UI metaphors
+- Forbidden: breaking the fourth wall about the medium itself
+
+When in doubt, ask: would this read well on a CRT monitor from 1989?

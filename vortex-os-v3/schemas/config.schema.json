@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Orchestration Config",
+  "description": "Config v2 schema for orchestrator_skill.",
+  "type": "object",
+  "required": ["project", "paths", "agents", "passes"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["name","version"],
+      "properties": {
+        "name":        { "type": "string" },
+        "version":     { "type": "string" },
+        "author":      { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "required": ["plan_file","state_file"],
+      "properties": {
+        "plan_file":  { "type": "string" },
+        "state_file": { "type": "string" },
+        "memory_dir": { "type": "string" },
+        "output_dir": { "type": "string" },
+        "audit_file": { "type": "string" }
+      }
+    },
+    "agents": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["primary","supports_parallel","best_for"],
+        "properties": {
+          "primary":           { "type": "string" },
+          "supports_parallel": { "type": "boolean" },
+          "max_parallel":      { "type": "integer" },
+          "max_input_tokens":  { "type": "integer" },
+          "best_for":          { "type": "array","items": { "type": "string" } }
+        }
+      }
+    },
+    "agent_aliases": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of role names to underlying agent names. Decouples orchestration roles from agent implementations."
+    },
+    "passes": {
+      "type": "object",
+      "required": ["pass_1_task_analysis_decomposition","pass_2_agent_selection_dispatch","pass_3_result_aggregation_validation","pass_4_logging_sealing"],
+      "properties": {
+        "pass_1_task_analysis_decomposition": {
+          "type": "object",
+          "properties": {
+            "max_subtasks":          { "type": "integer" },
+            "require_dependencies":  { "type": "boolean" },
+            "validate_against_agents":{ "type": "boolean" }
+          }
+        },
+        "pass_2_agent_selection_dispatch": {
+          "type": "object",
+          "properties": {
+            "max_concurrent":    { "type": "integer" },
+            "retry_on_failure":  { "type": "boolean" },
+            "max_retries":       { "type": "integer" },
+            "default_handoff":   { "type": "string", "enum": ["one_way","bidirectional","fan_in","none"] },
+            "fallback_agent":    { "type": "string" }
+          }
+        },
+        "pass_3_result_aggregation_validation": {
+          "type": "object",
+          "properties": {
+            "require_all_tasks_complete":  { "type": "boolean" },
+            "validate_output_paths_exist": { "type": "boolean" },
+            "validate_cmd_default":        { "type": "string" }
+          }
+        },
+        "pass_4_logging_sealing": {
+          "type": "object",
+          "properties": {
+            "sealed_marker": { "type": "string" },
+            "log_format":    { "type": "string", "enum": ["json","html_comment","plain"] }
+          }
+        },
+        "pass_5_notification": {
+          "type": "object",
+          "properties": {
+            "enabled":        { "type": "boolean" },
+            "message_format": { "type": "string" }
+          }
+        }
+      }
+    },
+    "context_recovery": {
+      "type": "object",
+      "properties": {
+        "enabled":                    { "type": "boolean" },
+        "max_context_tokens":         { "type": "integer" },
+        "save_state_after_each_pass": { "type": "boolean" },
+        "memory_namespace":           { "type": "string" },
+        "checkpoint_interval_minutes":{ "type": "integer" }
+      }
+    },
+    "delegation": {
+      "type": "object",
+      "properties": {
+        "enabled":          { "type": "boolean" },
+        "prefer_parallel":  { "type": "boolean" },
+        "min_parallel_size":{ "type": "integer" },
+        "communication":    { "type": "string" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "properties": {
+        "default_validate_min_score": { "type": "number" },
+        "default_judge_model":       { "type": "string" }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "properties": {
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type":         { "type": "string", "enum": ["log","file","webhook","mail","slack"] },
+              "name":         { "type": "string" },
+              "path":         { "type": "string" },
+              "url":          { "type": "string" },
+              "command":      { "type": "string" },
+              "method":       { "type": "string" },
+              "content_type": { "type": "string" }
+            }
+          }
+        },
+        "message_format": { "type": "string" }
+      }
+    },
+    "dynamic_routing": {
+      "type": "object",
+      "properties": {
+        "enabled":    { "type": "boolean" },
+        "model":      { "type": "string" },
+        "provider":   { "type": "string", "enum": ["openai","anthropic","google"] },
+        "temperature":{ "type": "number" }
+      }
+    },
+    "global_limits": {
+      "type": "object",
+      "description": "#18 cost governor / #15 backpressure",
+      "properties": {
+        "max_total_runtime_s":        { "type": "integer" },
+        "max_total_cost_usd":          { "type": "number" },
+        "warn_pct":                    { "type": "number" },
+        "abort_pct":                   { "type": "number" },
+        "max_in_flight":               { "type": "integer" },
+        "queue_depth_warn":            { "type": "integer" },
+        "human_review_threshold_usd":  { "type": "number", "description": "#23 pre-flight threshold" }
+      }
+    },
+    "sandbox": {
+      "type": "object", "description": "#19 microVM sandbox default",
+      "properties": {
+        "default":       { "enum": ["host","docker","microvm"], "default": "host" },
+        "microvm_binary":{ "type": "string" },
+        "vm_template":   { "type": "string" }
+      }
+    },
+    "routing": {
+      "type": "object", "properties": {
+        "strategy":         { "enum": ["static","learning","pareto"] },
+        "epsilon":          { "type": "number" },
+        "success_threshold":{ "type": "number" },
+        "shadow_mode":      { "type": "boolean", "description": "#25 A/B shadow" }
+      }
+    },
+    "personas": {
+      "type": "object", "description": "#6 persona pins",
+      "additionalProperties": { "type": "string" }
+    },
+    "secret_approvers": {
+      "type": "object", "description": "#11 secret approvals",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "tools_registry_url":   { "type": "string", "description": "#4 MCP tools" },
+    "marketplace_url":      { "type": "string", "description": "#21 skill marketplace" },
+    "bus_socket":           { "type": "string", "description": "#30 agent-bus" },
+    "tracing_exporter":     { "type": "string", "description": "#10 OTel exporter target" },
+    "llm_adapter_default":  { "type": "string", "description": "#8 default adapter" },
+    "fallback_strategy":    { "type": "object", "description": "#C graceful degradation" },
+    "snapshot_dir":         { "type": "string", "description": "A time-travel" },
+    "dynamic_agents":       { "type": "object", "description": "Allow supervisor to spawn sub-agents on the fly when no existing agent matches a task.",
+      "properties": {
+        "enabled":             { "type": "boolean", "default": true, "description": "Master switch for on-demand agent creation. Default ON." },
+        "static_only":         { "type": "boolean", "default": false, "description": "Refuse dynamic creation; pin to a static agent list." },
+        "default_quarantine":  { "type": "integer", "minimum": 0, "default": 3, "description": "Runs to wait before trusting a spawned agent." },
+        "max_dynamic":         { "type": "integer", "minimum": 0, "default": 0, "description": "Cap on total dynamic agents. 0 = unlimited." },
+        "synthesis_model":     { "type": "string",  "description": "LLM model used by Mode 3 (synthesize). Omit to fall back to template-clone." },
+        "synthesis_provider":  { "type": "string" },
+        "audit_log":           { "type": "string" },
+        "dynamic_dir":         { "type": "string" },
+        "require_approval":    { "type": "boolean", "default": false, "description": "Pause and prompt a human before every spawn." },
+        "auto_tick_quarantine": { "type": "boolean", "default": false, "description": "Auto-age quarantine counter after every successful invocation." },
+        "quarantine_default":   { "type": "integer", "minimum": 1, "default": 3, "description": "Initial quarantine_remaining for newly spawned dynamic agents." },
+        "similarity_threshold": {
+          "type": "object",
+          "description": "Bands for the four-band similarity classifier.",
+          "properties": {
+            "reuse_max":     { "type": "number", "minimum": 0, "maximum": 1, "default": 0.15 },
+            "reuse_log_max": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.40 },
+            "propose_max":   { "type": "number", "minimum": 0, "maximum": 1, "default": 0.70 }
+          }
+        },
+        "weights": {
+          "type": "object",
+          "description": "Field weights for similarity scoring (must sum to 1.0 after normalization).",
+          "properties": {
+            "schema":       { "type": "number", "default": 0.5 },
+            "description":  { "type": "number", "default": 0.25 },
+            "capabilities": { "type": "number", "default": 0.25 }
+          }
+        },
+        "orphan_dir": {
+          "type": "string",
+          "default": "agents/orphaned/"
+        }
+      }
+    },
+    "aesthetics": {
+      "type": "object", "description": "V3 Block 5 — Project-scoped aesthetic rules.",
+      "properties": {
+        "enabled":           { "type": "boolean", "default": false },
+        "version":           { "type": "string",  "default": "1.0.0" },
+        "rules":             { "type": "array",   "items": { "type": "string" } },
+        "applies_to_agents": { "type": "array",   "items": { "type": "string" } },
+        "violation_action":  { "type": "string",  "enum": ["warn","block","quarantine"], "default": "warn" }
+      }
+    },
+    "security": {
+      "type": "object", "description": "V3 — Adversarial gate, consensus scoring, sandbox config.",
+      "properties": {
+        "adversarial_llm_enabled":     { "type": "boolean", "default": false },
+        "adversarial_threat_threshold":{ "type": "number",  "default": 0.85 },
+        "canary_tokens":               { "type": "array",   "items": { "type": "string" } },
+        "consensus": {
+          "type": "object",
+          "properties": {
+            "min_voters":   { "type": "integer", "default": 3 },
+            "scoring": {
+              "type": "object",
+              "properties": {
+                "invariant_weight": { "type": "number", "default": 0.5 },
+                "test_weight":      { "type": "number", "default": 0.3 },
+                "sanity_weight":    { "type": "number", "default": 0.2 }
+              }
+            },
+            "cost_cap_usd": { "type": "number", "default": 5.0 }
+          }
+        },
+        "sandbox": {
+          "type": "object",
+          "properties": {
+            "image":      { "type": "string", "default": "sandbox_env.wasm" },
+            "timeout_ms": { "type": "integer","default": 5000 }
+          }
+        }
+      }
+    },
+    "cart": {
+      "type": "object", "description": "V3 Block 10 — Continuous Automated Red Teaming.",
+      "properties": {
+        "enabled":             { "type": "boolean", "default": false },
+        "schedule":            { "type": "string",  "default": "0 3 * * *" },
+        "fail_action":         { "type": "string",  "enum": ["quarantine","orphan","log"], "default": "quarantine" },
+        "dry_run_by_default":  { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

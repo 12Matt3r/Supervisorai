@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Orchestrator Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #1e293b; --fg: #f1f5f9; --muted: #94a3b8;
+      --accent: #38bdf8; --ok: #4ade80; --warn: #fbbf24; --err: #f87171; --line: #334155;
+    }
+    body { font-family: ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 20px; }
+    h1 { font-weight: 600; font-size: 1.4rem; margin-bottom: 12px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .panel { background: var(--panel); border-radius: 8px; padding: 16px; flex: 1; min-width: 280px; }
+    .panel h2 { margin: 0 0 8px; font-size: 1rem; color: var(--muted); font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .s-pending    { background: rgba(251,191,36,0.15); color: var(--warn); }
+    .s-ready      { background: rgba(251,191,36,0.15); color: var(--warn); }
+    .s-dispatched { background: rgba(56,189,248,0.15); color: var(--accent); }
+    .s-running    { background: rgba(56,189,248,0.15); color: var(--accent); }
+    .s-complete   { background: rgba(74,222,128,0.15); color: var(--ok); }
+    .s-sealed     { background: rgba(74,222,128,0.15); color: var(--ok); }
+    .s-skipped    { background: rgba(148,163,184,0.15); color: var(--muted); }
+    .s-failed     { background: rgba(248,113,113,0.15); color: var(--err); }
+    .s-escalated  { background: rgba(251,146,60,0.15); color: var(--warn); }
+    pre { background: #0b1220; color: var(--fg); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; }
+    .stat { font-size: 1.6rem; font-weight: 600; color: var(--accent); }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>Orchestrator Dashboard</h1>
+  <div id="meta" class="row">
+    <div class="panel"><h2>Plan</h2><div id="plan-id" class="muted">Loading…</div></div>
+    <div class="panel"><h2>Goal</h2><div id="plan-goal" class="muted">—</div></div>
+    <div class="panel"><h2>Status</h2><div id="plan-sealed" class="stat">—</div></div>
+  </div>
+  <div id="counts" class="row"></div>
+  <div class="row"><div class="panel" style="flex: 1;">
+    <h2>Tasks</h2>
+    <table id="tasks-table">
+      <thead>
+        <tr><th>ID</th><th>Agent</th><th>Status</th><th>Depends On</th><th>Output</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div></div>
+  <div class="row"><div class="panel" style="flex: 1;">
+    <h2>State (live JSON)</h2>
+    <pre id="state-json">Loading…</pre>
+  </div></div>
+  <script>
+    // Configure these via query params or hard-code for your run.
+    function getParam(k, d) { return new URLSearchParams(location.search).get(k) || d; }
+    const ENDPOINT = getParam('endpoint', '/state.json');   // path to state.json
+    const PLAN = getParam('plan', '/plan.json');             // path to plan.json
+    const INTERVAL = parseInt(getParam('interval', '2000'), 10);
+    async function poll() {
+      try {
+        const [planRes, stateRes] = await Promise.all([fetch(PLAN + '?t=' + Date.now()), fetch(ENDPOINT + '?t=' + Date.now())]);
+        const plan = await planRes.json();
+        const state = await stateRes.json();
+        render(plan, state);
+      } catch (e) {
+        document.getElementById('plan-id').textContent = 'fetch error: ' + e.message;
+      }
+    }
+    function render(plan, state) {
+      document.getElementById('plan-id').textContent = plan.plan_id || '—';
+      document.getElementById('plan-goal').textContent = plan.goal || '—';
+      document.getElementById('plan-sealed').textContent = plan.sealed ? 'SEALED' : 'OPEN';
+      document.getElementById('plan-sealed').style.color = plan.sealed ? 'var(--ok)' : 'var(--accent)';
+      const counts = {};
+      (plan.tasks || []).forEach(t => { const s = t.status || 'pending'; counts[s] = (counts[s]||0) + 1; });
+      const countsRow = document.getElementById('counts');
+      countsRow.innerHTML = '';
+      ['complete','dispatched','pending','failed','sealed','skipped','escalated'].forEach(s => {
+        const n = counts[s] || 0;
+        const p = document.createElement('div');
+        p.className = 'panel';
+        p.innerHTML = `<h2>${s}</h2><div class="stat">${n}</div>`;
+        countsRow.appendChild(p);
+      });
+      const tbody = document.querySelector('#tasks-table tbody');
+      tbody.innerHTML = '';
+      (plan.tasks || []).forEach(t => {
+        const tr = document.createElement('tr');
+        const status = t.status || 'pending';
+        tr.innerHTML = `
+          <td>${t.id || ''}</td>
+          <td>${t.agent_role || ''}</td>
+          <td><span class="badge s-${status}">${status}</span></td>
+          <td>${(t.depends_on || []).join(', ') || '—'}</td>
+          <td class="muted">${t.output_path || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('state-json').textContent = JSON.stringify(state, null, 2);
+    }
+    poll();
+    setInterval(poll, INTERVAL);
+  </script>
+</body>
+</html>

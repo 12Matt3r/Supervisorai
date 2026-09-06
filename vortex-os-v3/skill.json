@@ -1,0 +1,62 @@
+{
+  "name": "universal-multi-agent-orchestrator",
+  "display_name": "Universal Multi-Agent Orchestrator v3.1 — JIT-Native Edition",
+  "version": "3.1.0",
+  "description": "A production-grade, pure-Bash sub-agent orchestration skill that plans, dispatches, supervises, and verifies parallel AI agents over a unified 8-Invariant envelope. Ships with 30+ ready-to-run static agents and a Just-In-Time skill bridge that queries a native tool library and falls back to web research to synthesize new agent JSON envelopes on the fly.",
+  "author": "MiniMax Agent",
+  "license": "MIT",
+  "tags": [
+    "orchestrator",
+    "multi-agent",
+    "sub-agent",
+    "supervisor",
+    "dispatcher",
+    "jit",
+    "adversarial",
+    "agentic"
+  ],
+  "category": "agent-framework",
+  "language": "bash",
+  "entry_point": "skill.sh",
+  "main": "skill.sh",
+  "commands": [
+    "--agents-discover",
+    "--agents-lint",
+    "--agents-compile",
+    "--dispatch-ready",
+    "--dispatch-v3",
+    "--jit-bridge",
+    "--jit-status",
+    "--llm-stub",
+    "--audit-show"
+  ],
+  "test_command": "bash test_v3_master.sh",
+  "requirements": {
+    "bash": ">=4.0",
+    "jq": ">=1.6",
+    "python3": ">=3.8"
+  },
+  "files": {
+    "main": "skill.sh",
+    "config": "config.minimax.json",
+    "config_example": "config.example.json",
+    "libraries": "lib/",
+    "static_agents": "agents/",
+    "templates": "templates/",
+    "schemas": "schemas/",
+    "tests": "tests/",
+    "test_suite": "test_v3_master.sh"
+  },
+  "capabilities": [
+    "agent_dispatch",
+    "agent_supervision",
+    "jit_skill_acquisition",
+    "adversarial_shielding",
+    "continuity_enforcement",
+    "async_yielding",
+    "prompt_inheritance",
+    "static_linting",
+    "consensus_voting",
+    "memory_hydration"
+  ]
+}

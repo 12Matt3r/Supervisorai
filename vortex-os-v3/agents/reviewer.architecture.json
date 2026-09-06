@@ -1,0 +1,109 @@
+{
+  "name": "reviewer.architecture",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Reviews architecture decisions: coupling, cohesion, blast radius, SLOs, cost, security. Produces ADR-style recommendations.",
+  "entry": "http://mcp.local:7474/tools/architecture_review",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "proposal"
+    ],
+    "properties": {
+      "proposal": {
+        "type": "string"
+      },
+      "context": {
+        "type": "object"
+      },
+      "scope": {
+        "enum": [
+          "service",
+          "system",
+          "org"
+        ],
+        "default": "service"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "verdict",
+      "risks",
+      "mitigations"
+    ],
+    "properties": {
+      "verdict": {
+        "enum": [
+          "approve",
+          "request_changes",
+          "reject"
+        ]
+      },
+      "risks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "mitigations": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "adr_md": {
+        "type": "string"
+      }
+    }
+  },
+  "writes": [
+    "adr/NNNN-{{slug}}.md"
+  ],
+  "reads": [
+    "docs/architecture/**",
+    "diagrams/**"
+  ],
+  "resources": {
+    "cpu": "med",
+    "mem": "2Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.75,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.35,
+    "must_have": [
+      "verdict",
+      "risks",
+      "mitigations",
+      "adr_md"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "reviewer.dependencies"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

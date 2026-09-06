@@ -1,0 +1,105 @@
+{
+  "name": "security.threatmodel",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Generates STRIDE-style threat models from architecture artifacts (diagrams, code, configs). Maps each threat to mitigations and tests.",
+  "entry": "http://mcp.local:7474/tools/threat_model",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "architecture_input"
+    ],
+    "properties": {
+      "architecture_input": {
+        "type": "string"
+      },
+      "framework": {
+        "enum": [
+          "stride",
+          "dread",
+          "linddun"
+        ],
+        "default": "stride"
+      },
+      "asset_focus": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "threats",
+      "mitigations",
+      "report_md"
+    ],
+    "properties": {
+      "threats": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "mitigations": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "report_md": {
+        "type": "string"
+      },
+      "risk_score": {
+        "type": "number"
+      }
+    }
+  },
+  "writes": [
+    "threat-model.md",
+    "threat-model.json"
+  ],
+  "reads": [
+    "docs/architecture/**",
+    "diagrams/**"
+  ],
+  "resources": {
+    "cpu": "med",
+    "mem": "2Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.75,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.4,
+    "must_have": [
+      "threats",
+      "mitigations",
+      "report_md"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

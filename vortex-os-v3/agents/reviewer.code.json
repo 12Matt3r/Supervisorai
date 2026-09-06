@@ -1,0 +1,106 @@
+{
+  "name": "reviewer.code",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Performs deep code review: correctness, idiomatic style, naming, complexity, dead code, leak surface. Emits PR-quality comments.",
+  "entry": "http://mcp.local:7474/tools/code_review",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "diff"
+    ],
+    "properties": {
+      "diff": {
+        "type": "string"
+      },
+      "language": {
+        "type": "string"
+      },
+      "ruleset": {
+        "enum": [
+          "default",
+          "strict",
+          "minimal"
+        ],
+        "default": "default"
+      },
+      "max_comments": {
+        "type": "integer",
+        "default": 25
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "approved",
+      "comments"
+    ],
+    "properties": {
+      "approved": {
+        "type": "boolean"
+      },
+      "blockers": {
+        "type": "integer"
+      },
+      "comments": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "complexity_report": {
+        "type": "object"
+      }
+    }
+  },
+  "writes": [
+    "review.json"
+  ],
+  "reads": [
+    "{{input.diff}}"
+  ],
+  "resources": {
+    "cpu": "med",
+    "mem": "2Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential",
+    "on": [
+      "timeout",
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 300,
+    "max_cost_usd": 0.2,
+    "must_have": [
+      "approved",
+      "comments"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "reviewer.dependencies"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

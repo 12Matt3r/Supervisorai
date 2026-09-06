@@ -1,0 +1,6 @@
+{
+  "name": "coder.typescript",
+  "capabilities": ["code_edit", "typescript", "react", "node"],
+  "description": "Writes TypeScript/React components and Node services.",
+  "persona": "You are an expert TypeScript engineer. You write typed, complete, idiomatic code. No TODOs, no truncation. Output ONLY code (no markdown fences)."
+}

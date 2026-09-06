@@ -49,7 +49,7 @@ try:
     from idea_validation.validator import Validator
     from idea_validation.data_models import Idea
     from orchestrator.core import Orchestrator
-from llm.client import LLMClient
+    from llm.client import LLMClient
     INTEGRATED_MODE = True
     logger.info("Loaded integrated supervisor system")
 except ImportError as e:
@@ -739,13 +739,70 @@ async def submit_goal(name: str, description: str) -> str:
     """Submits a new high-level goal to the orchestrator."""
     try:
         orch = get_orchestrator_instance()
-        project = orch.submit_goal(name, description)
+        project = await orch.submit_goal(name, description)
         import dataclasses
         # Convert the project to a dict, but handle the nested tasks
         project_dict = dataclasses.asdict(project)
         return json.dumps({"success": True, "project": project_dict}, default=str)
     except Exception as e:
         logger.error(f"Failed to submit goal: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def run_master_goal(name: str, description: str, continuity_rules: Optional[List[str]] = None) -> str:
+    """Run a goal end-to-end through the Plan->Delegate->Audit->Correct->HITL loop.
+
+    High-stakes tasks halt for human approval; use hitl_status / hitl_approve /
+    hitl_deny to release them, then call this again to resume.
+    """
+    try:
+        orch = get_orchestrator_instance()
+        project, final = await orch.run_goal(
+            name, description,
+            continuity_rules=continuity_rules or [],
+            approval_callback=None,  # MCP flow: halt for out-of-band approval
+        )
+        import dataclasses
+        return json.dumps({
+            "success": True,
+            "status": project.status,
+            "final": final,
+            "pending_approvals": orch.pending_approvals(),
+            "project": dataclasses.asdict(project),
+        }, default=str)
+    except Exception as e:
+        logger.error(f"run_master_goal failed: {e}")
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def hitl_status() -> str:
+    """List pending human-in-the-loop approval requests (Deep-Sleep gate)."""
+    try:
+        orch = get_orchestrator_instance()
+        return json.dumps({"success": True, "pending": orch.pending_approvals()})
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def hitl_approve(task_id: str) -> str:
+    """Approve a pending high-stakes task so the run can finalize it."""
+    try:
+        orch = get_orchestrator_instance()
+        ok = orch.approve_task(task_id)
+        return json.dumps({"success": ok, "task_id": task_id,
+                           "message": "approved" if ok else "no pending request for task_id"})
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+@mcp.tool
+async def hitl_deny(task_id: str) -> str:
+    """Deny a pending high-stakes task (blocks finalization)."""
+    try:
+        orch = get_orchestrator_instance()
+        ok = orch.deny_task(task_id)
+        return json.dumps({"success": ok, "task_id": task_id,
+                           "message": "denied" if ok else "no pending request for task_id"})
+    except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
 
 @mcp.tool

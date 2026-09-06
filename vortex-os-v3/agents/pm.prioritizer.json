@@ -1,0 +1,111 @@
+{
+  "name": "pm.prioritizer",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Triages a backlog of tickets/issues. Clusters, dedupes, scores by RICE/WSJF/value-vs-effort, emits a prioritized list with rationale.",
+  "entry": "http://mcp.local:7474/tools/pm_prioritize",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "tickets"
+    ],
+    "properties": {
+      "tickets": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "framework": {
+        "enum": [
+          "rice",
+          "wsjf",
+          "ice",
+          "kano"
+        ],
+        "default": "rice"
+      },
+      "team_capacity_pts": {
+        "type": "integer",
+        "default": 30
+      },
+      "horizon_sprints": {
+        "type": "integer",
+        "default": 2
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "prioritized",
+      "buckets"
+    ],
+    "properties": {
+      "prioritized": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "buckets": {
+        "type": "object"
+      },
+      "duplicates": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "stretch_items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "writes": [
+    "prioritized.md"
+  ],
+  "reads": [],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 300,
+    "max_cost_usd": 0.1,
+    "must_have": [
+      "prioritized",
+      "buckets"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "support.triager"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

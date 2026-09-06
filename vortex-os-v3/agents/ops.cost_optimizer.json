@@ -1,0 +1,99 @@
+{
+  "name": "ops.cost_optimizer",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Analyzes cloud bills, identifies waste (idle load balancers, oversized DBs, untagged resources), emits rightsizing plan with $ impact.",
+  "entry": "templates/research.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "billing_export"
+    ],
+    "properties": {
+      "billing_export": {
+        "type": "string"
+      },
+      "provider": {
+        "enum": [
+          "aws",
+          "gcp",
+          "azure"
+        ],
+        "default": "aws"
+      },
+      "lookback_days": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "findings",
+      "savings_plan"
+    ],
+    "properties": {
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "savings_plan": {
+        "type": "string"
+      },
+      "est_savings_usd_month": {
+        "type": "number"
+      },
+      "co2e_kg_month": {
+        "type": "number"
+      }
+    }
+  },
+  "writes": [
+    "reports/cost.md",
+    "reports/cost.csv"
+  ],
+  "reads": [
+    "billing/**",
+    "terraform/**",
+    "k8s/**"
+  ],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.1,
+    "must_have": [
+      "findings",
+      "savings_plan"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

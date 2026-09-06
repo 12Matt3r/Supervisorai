@@ -1,0 +1,117 @@
+{
+  "name": "researcher.web",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Web research: searches, fetches top N results, extracts content, dedups, summarizes with citations. Honored source allowlist.",
+  "entry": "http://mcp.local:7474/tools/web_research",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 3
+      },
+      "max_results": {
+        "type": "integer",
+        "default": 10
+      },
+      "allowlist_domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "time_range": {
+        "enum": [
+          "day",
+          "week",
+          "month",
+          "year",
+          "any"
+        ],
+        "default": "any"
+      },
+      "language": {
+        "type": "string",
+        "default": "en"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "answer",
+      "sources"
+    ],
+    "properties": {
+      "answer": {
+        "type": "string"
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "snippets": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "writes": [
+    "research/{{query_slug}}.md"
+  ],
+  "reads": [],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 3,
+    "backoff": "exponential",
+    "on": [
+      "timeout",
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.2,
+    "must_have": [
+      "answer",
+      "sources"
+    ],
+    "must_not": [
+      "unable to verify",
+      "I cannot access"
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "writer.docs"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

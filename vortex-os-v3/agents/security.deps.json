@@ -1,0 +1,107 @@
+{
+  "name": "security.deps",
+  "version": "2.0.0",
+  "kind": "shell",
+  "description": "Scans dependencies for known CVEs via OSV, NVD, GHSA. Produces prioritized patch plan, opens PRs for non-breaking upgrades.",
+  "entry": "scripts/scan_cves.sh",
+  "writes": [
+    "reports/cves.md",
+    "reports/cve-fix-plan.json"
+  ],
+  "reads": [
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "requirements.txt",
+    "Cargo.lock",
+    "go.sum",
+    "Gemfile.lock",
+    "poetry.lock"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "ecosystems": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "ignore": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      },
+      "auto_open_pr": {
+        "type": "boolean",
+        "default": false
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "findings",
+      "fix_plan"
+    ],
+    "properties": {
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "fix_plan": {
+        "type": "string"
+      },
+      "crit_count": {
+        "type": "integer"
+      }
+    }
+  },
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 3,
+    "backoff": "exponential",
+    "on": [
+      "timeout",
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.8,
+    "max_latency_s": 300,
+    "max_cost_usd": 0,
+    "must_have": [
+      "findings",
+      "fix_plan"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "security.secrets"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}
