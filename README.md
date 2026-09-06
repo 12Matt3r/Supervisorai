@@ -316,11 +316,12 @@ hackathon-strong to enterprise-ready — with what's already done in this branch
 **Done**
 - ✅ **Green CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — the full test suite + config preflight on every push.
 - ✅ **Loud-fail preflight** instead of a silent mock, with a `--require-live` gate for CI/deploy.
+- ✅ **Live-M3 CI gate is active** — the `GMI_API_KEY` is wired in as a repo Actions secret and every push runs one real request to MiniMax-M3, so a green build proves the deploy is on live M3, not the silent mock.
 - ✅ **Configuration matrix + production checklist** ([`docs/CONFIGURATION.md`](docs/CONFIGURATION.md)).
 - ✅ **Feedback loop** persisted, version-controlled, and charted ([`docs/FEEDBACK_LOOP.md`](docs/FEEDBACK_LOOP.md)).
 
 **Next**
-- **Secrets** — source `GMI_API_KEY` from a secrets manager / CI secret rather than `.env`; add the repo `GMI_API_KEY` Actions secret to switch on the live-M3 CI gate.
+- **Secrets** — graduate `GMI_API_KEY` from a CI/repo secret to a managed secrets store (rotation, per-environment scoping) rather than `.env`.
 - **Auth & multi-tenancy** on the FastMCP server — per-caller keys, rate limits, quotas.
 - **Live drift widget** — surface `weight_history.jsonl` as a real-time dashboard chart (today it renders as a generated PNG).
 - **Shared weight store** — move `config/weights.json` to a shared backend so the learned policy stays consistent across instances.
