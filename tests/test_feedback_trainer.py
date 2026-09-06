@@ -4,7 +4,7 @@ import os
 import shutil
 from typing import Dict, Any
 
-from src.supervisor_agent.feedback_trainer import FeedbackTrainer
+from supervisor_agent.feedback_trainer import FeedbackTrainer
 
 class TestFeedbackTrainer(unittest.TestCase):
 
