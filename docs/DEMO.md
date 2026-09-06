@@ -53,7 +53,7 @@ cd /tmp/show && PYTHONPATH=. python -m pytest test_discount.py -q   # 16 passed
 ## Scene 3 — same engine, as a studio CLI (~20s, optional)
 
 ```bash
-cd vortex-os
+cd implementations/vortex-os
 export GMI_API_KEY="$GMI_API_KEY"
 ./skill.sh --dispatch-master objective.md      # 4-tier trace, writes deliverables/
 ./skill.sh --hitl-status                        # the Deep-Sleep gate

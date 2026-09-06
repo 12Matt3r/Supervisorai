@@ -20,10 +20,17 @@
 | 🔀 **Pull request** | The full build history — **[PR #1](https://github.com/hungryshmorez/Supervisorai/pull/1)** |
 | 🎬 **Demo runbook** | Scene-by-scene recording guide — **[`docs/DEMO.md`](docs/DEMO.md)** |
 | 📄 **Sample live trace** | A full sanitized MiniMax-M3 run — **[`docs/sample_live_run.txt`](docs/sample_live_run.txt)** |
-| 🎨 **Creative studio skill** | 4-tier CLI, HITL, continuity — **[`vortex-os/`](vortex-os/)** |
-| 🧰 **Software studio skill** | 30+ agent roster, consensus, cost gates — **[`vortex-os-v3/`](vortex-os-v3/)** |
+| ⚙️ **Core engine** | The product — Python package, FastMCP-served — **[`src/`](src/)** |
+| 🖥️ **Command-line implementations** | Experimental bash clients of the same ideas — **[`implementations/`](implementations/)** |
 
 > The two website links go live once **GitHub Pages** is enabled (Settings → Pages → *Deploy from a branch* → `/docs`). Both pages are self-contained and also render offline.
+
+**What runs the system:** the **core engine** is the Python package in
+[`src/`](src/) — typed, tested, async, and FastMCP-served. Use it for anything
+production-facing. The bash skills in [`implementations/`](implementations/) are
+downstream command-line clients of the same ideas, for quick local experiments.
+→ [New here? Start with `docs/CONFIGURATION.md`](docs/CONFIGURATION.md) for a
+config map, a one-command preflight check, and a production-readiness checklist.
 
 ---
 
@@ -102,27 +109,12 @@ On top of the reasoning loop, SupervisorAI runs as an autonomous studio:
   `hitl_status` / `hitl_approve` / `hitl_deny` MCP tools (or an approval callback
   in code). **Never auto-approved** — the gate is the last line of defense.
 
-> These four capabilities were consolidated from a sibling prototype (VORTEX-OS)
-> onto this engine, so there is one verified system instead of two.
-
-### The VORTEX-OS studio skills (`vortex-os/`, `vortex-os-v3/`)
-
-The Python engine above grew out of **VORTEX-OS**, a bash "skill" that runs the
-same 4-tier orchestration from the command line. Both flavors ship here, and both
-now call **MiniMax-M3 on GMI Cloud** for real (via `lib/minimax.sh`) instead of
-the placeholder stubs they were built with:
-
-- **`vortex-os/`** — the creative studio flavor: 4-tier chain of command, HITL
-  Deep-Sleep gate, continuity engine, self-healing, and real on-disk
-  deliverables. Run `./skill.sh --dispatch-master <objective.md>`.
-- **`vortex-os-v3/`** — the software-engineering flavor: a 30+ agent roster
-  (coder.python, reviewer.code, security.sast, …) with dynamic agents, consensus
-  voting, cost governance, and quality gates. A real `adapters/minimax_m3.sh`
-  drives the adapter chain, and the rule-verdict / consensus steps call M3.
-
-Set `GMI_API_KEY` (see `.env.example`) and each skill runs against real M3;
-without a key both fall back to a deterministic offline mode so they never
-hard-crash.
+> These four capabilities began as a sibling prototype (**VORTEX-OS**) and were
+> consolidated onto this Python engine — so there is **one** verified system, not
+> two. The original bash skills still ship as downstream **command-line
+> implementations** under [`implementations/`](implementations/); see
+> [Command-line implementations](#command-line-implementations-experimental) at
+> the end of this README.
 
 ## GMI Cloud / MiniMax-M3 integration
 
@@ -150,15 +142,23 @@ pip install -r requirements.txt
 cp .env.example .env      # then edit .env and paste your GMI_API_KEY
 #   (or just:  export GMI_API_KEY="<your key>")
 
-# 3. Run the turnkey demo — plan, delegate, audit, self-correct, verify
+# 3. Preflight — validate config + confirm you're on LIVE M3 (not the silent mock)
+python scripts/preflight.py           # add --require-live in CI
+
+# 4. Run the turnkey demo — plan, delegate, audit, self-correct, verify
 python demo.py
 
-# 4. Run the test suite
+# 5. Run the test suite
 PYTHONPATH=src pytest tests/ -q
 
-# 5. (optional) Run the MCP server exposing the supervisor as tools
+# 6. (optional) Run the MCP server exposing the supervisor as tools
 PYTHONPATH=src python src/server/main.py
 ```
+
+**Deploying for real?** Read **[`docs/CONFIGURATION.md`](docs/CONFIGURATION.md)**
+for the full configuration matrix and a production-readiness checklist, and
+**[`docs/FEEDBACK_LOOP.md`](docs/FEEDBACK_LOOP.md)** for how the Expectimax agent
+persists and learns from human feedback (with the exact math).
 
 The demo runs a real scenario — an incoming bug report on a mock repo — and
 prints a live trace tagged `[SUPERVISOR - M3]`, `[DISPATCH]`, `[AUDIT]`,
@@ -287,6 +287,26 @@ To get the project running, follow these steps:
 
 2.  **Use the Dashboard:**
     *   Open the `examples/dashboard.html` file in your web browser. This file is self-contained and will connect to the local server automatically.
+
+## Command-line implementations (experimental)
+
+> **The core product is the Python engine in [`src/`](src/)** — typed, tested,
+> async, and MCP-served. The bash skills below are **downstream command-line
+> clients** of the same ideas, kept for local experiments and terminal demos.
+>
+> **Which should I use?** — **Python (`src/`) for enterprise / production**
+> (concurrency, tests, MCP, a typed dependency graph). **Bash
+> (`implementations/`) for quick local experiments** and terminal runs.
+
+Both live under [`implementations/`](implementations/) and call MiniMax-M3 on GMI
+Cloud via their `lib/minimax.sh` bridge (deterministic offline fallback with no key):
+
+- **[`implementations/vortex-os/`](implementations/vortex-os/)** — creative flavor:
+  4-tier chain of command, HITL gate, continuity, on-disk deliverables.
+  `./skill.sh --dispatch-master <objective.md>`.
+- **[`implementations/vortex-os-v3/`](implementations/vortex-os-v3/)** — software
+  flavor: a 30+ agent roster with consensus voting, cost governance, and quality
+  gates. A real `adapters/minimax_m3.sh` drives the adapter chain.
 
 ## 6. Future Roadmap
 

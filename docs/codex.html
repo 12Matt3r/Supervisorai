@@ -166,6 +166,9 @@
       <a href="#mcp">MCP server</a>
       <a href="#vortex">VORTEX-OS (creative)</a>
       <a href="#vortexv3">VORTEX-OS v3 (software)</a>
+      <div class="navgroup">Operations</div>
+      <a href="#configuration">Configuration &amp; mock guard</a>
+      <a href="#feedback">Feedback &amp; learning</a>
       <div class="navgroup">Reference</div>
       <a href="#architecture">Architecture</a>
       <a href="#testing">Testing &amp; verification</a>
@@ -392,7 +395,7 @@ PYTHONPATH=src pytest tests/ -q          # 46 passing</code></pre>
     <article class="entry" id="vortex" data-terms="vortex-os creative skill bash 4-tier dispatch-master audit.jsonl skill.sh">
       <span class="kind">skill</span>
       <h2>VORTEX-OS — creative flavor</h2>
-      <p class="dfn">The same 4-tier orchestration as a command-line studio skill (<code>vortex-os/</code>).</p>
+      <p class="dfn">The same 4-tier orchestration as a command-line studio skill (<code>implementations/vortex-os/</code>) — a downstream client of the Python engine, not the core.</p>
       <p>A bash “skill” that runs the studio from the terminal: <code>./skill.sh --dispatch-master &lt;objective.md&gt;</code>. It carries the same ideas — a 4-tier chain of command (General Manager → Store → Shift → Crew), a HITL Deep-Sleep gate, a continuity engine, self-healing, an append-only <code>memory/audit.jsonl</code>, and real on-disk deliverables. <code>lib/minimax.sh</code> bridges the shell orchestrator to real MiniMax-M3; with no key it falls back to a deterministic stub.</p>
       <div class="facts">
         <dt>Plan</dt><dd><code>./skill.sh --dispatch-master objective.md</code></dd>
@@ -405,9 +408,30 @@ PYTHONPATH=src pytest tests/ -q          # 46 passing</code></pre>
     <article class="entry" id="vortexv3" data-terms="vortex-os v3 software 30 agents adapter consensus voting cost governor quality gate minimax_m3">
       <span class="kind">skill</span>
       <h2>VORTEX-OS v3 — software flavor</h2>
-      <p class="dfn">A 30+ agent software-engineering roster with consensus, cost governance, and quality gates (<code>vortex-os-v3/</code>).</p>
+      <p class="dfn">A 30+ agent software-engineering roster with consensus, cost governance, and quality gates (<code>implementations/vortex-os-v3/</code>).</p>
       <p>The engineering lineage: a large roster (<code>coder.python</code>, <code>reviewer.code</code>, <code>security.sast</code>, <code>data.cleaner</code>, <code>ops.deploy.k8s</code>, …), dynamic agents, an adapter chain with fallback, consensus voting, a cost governor, and quality gates. A real <code>adapters/minimax_m3.sh</code> drives the adapter chain (listed first so chains prefer it); the rule-verdict (<code>query_fast_llm</code>) and best-of-N synthesis (<code>evaluate_consensus</code>) call M3 when configured and fall back to local heuristics offline. The security scorer and embeddings stay deterministic by design.</p>
       <div class="seealso"><b>See also</b> · <a href="#roster">Agent roster</a> · <a href="#llmclient">LLMClient</a></div>
+    </article>
+
+    <!-- ================= OPERATIONS ================= -->
+    <article class="entry" id="configuration" data-terms="configuration config env deploy preflight mock live matrix checklist">
+      <span class="kind">operations</span>
+      <h2>Configuration &amp; the mock guard</h2>
+      <p class="dfn">One source of truth for the model, endpoint, and key — plus a preflight that refuses to run silently on the mock.</p>
+      <p>The model, endpoint, and key come from <strong>one place: the environment</strong> (<code>.env</code> or exported vars), read identically by the Python engine and the bash skills. There is no scattered <code>llm_config.json</code>; nothing is duplicated across files, so there are no precedence conflicts. The JSON files are engine-specific: <code>config/weights.json</code> and <code>config.json</code> belong to the Python engine, <code>config.minimax.json</code> to the v3 CLI skill.</p>
+      <p>The one real footgun is the <strong>silent mock</strong>: with no key (or a wrong base URL) the client falls back to a deterministic offline mock so demos never crash — which in production means you can run on the mock without noticing. <code>scripts/preflight.py</code> closes that hole: it validates the environment, parses every config file, and sends one tiny real request to confirm you are authenticated on <strong>live MiniMax-M3</strong>. It fails loudly (and <code>--require-live</code> exits non-zero for CI) instead of mocking silently.</p>
+      <pre class="code"><code>python scripts/preflight.py            # human-readable report
+python scripts/preflight.py --require-live   # non-zero unless live M3</code></pre>
+      <div class="seealso"><b>See also</b> · <a href="#llmclient">LLMClient</a> · <a href="#feedback">Feedback &amp; learning</a> · full matrix in <code>docs/CONFIGURATION.md</code></div>
+    </article>
+
+    <article class="entry" id="feedback" data-terms="feedback learning expectimax weights persistence drift bias glass box training override math">
+      <span class="kind">operations</span>
+      <h2>Feedback &amp; learning (the glass box)</h2>
+      <p class="dfn">How human corrections retrain the Expectimax weights — where they persist, and the exact math of one override.</p>
+      <p>An operator override is appended to <code>supervisor_data/feedback.json</code>; the <code>run_training</code> tool runs <code>FeedbackTrainer</code>; <code>update_weights()</code> applies the result in memory, <strong>persists it to <code>config/weights.json</code></strong> (so it survives a restart and is version-controlled), and appends a timestamped row to <code>supervisor_data/weight_history.jsonl</code>. <code>scripts/plot_weight_drift.py</code> charts that history so accumulating operator bias is <em>visible</em>, not hidden.</p>
+      <p>The rule is a slow perceptron step, learning rate <strong>0.01</strong>: <code>W_new = W_old + 0.01 × (H_correct − H_incorrect)</code>, then normalized to sum 1 and clamped ≥ 0. Each heuristic is in [0,1], so one override moves a weight by at most 0.01 — about <strong>five consistent overrides to shift a weight ~0.05</strong>. (The hard 0.4 / 0.9 action gates are fixed in code; overrides retrain the utility weights, not those gates.)</p>
+      <div class="seealso"><b>See also</b> · <a href="#expectimax">Expectimax</a> · <a href="#supervisor">SupervisorCore</a> · full lifecycle in <code>docs/FEEDBACK_LOOP.md</code></div>
     </article>
 
     <!-- ================= REFERENCE ================= -->
@@ -449,9 +473,14 @@ src/supervisor_agent/        SupervisorCore · expectimax · judge · quality
 src/server/main.py           FastMCP server + HITL tools
 agents/*.json                specialist personas
 demo.py                      turnkey end-to-end demo
+scripts/preflight.py         validate config + confirm live M3 (not mock)
+scripts/plot_weight_drift.py chart the learned-weight drift over time
+config/weights.json          persisted Expectimax weights (learned)
+docs/CONFIGURATION.md        config matrix + production checklist
+docs/FEEDBACK_LOOP.md        how the agent learns (persistence + math)
 docs/DEMO.md                 recording runbook
-vortex-os/                   VORTEX-OS creative skill (bash, M3-wired)
-vortex-os-v3/                VORTEX-OS software skill (bash, M3-wired)</code></pre>
+implementations/vortex-os/    VORTEX-OS creative skill (bash CLI client)
+implementations/vortex-os-v3/ VORTEX-OS software skill (bash CLI client)</code></pre>
       <div class="seealso"><b>See also</b> · <a href="#overview">Overview</a></div>
     </article>
 

@@ -27,7 +27,7 @@ packages = ["src/supervisor_agent"]
 # Collect only the real test suite. Keeps a bare `pytest` (and CI) from wandering
 # into generated deliverables/ or the bundled vortex-os* bash skills.
 testpaths = ["tests"]
-norecursedirs = ["deliverables", "vortex-os", "vortex-os-v3", "supervisor_data"]
+norecursedirs = ["deliverables", "implementations", "supervisor_data"]
 
 [tool.uv]
 dev-dependencies = [

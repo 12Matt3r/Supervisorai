@@ -81,7 +81,9 @@ class SupervisorCore:
             }
 
     def update_weights(self, new_weights: Dict[str, float]):
-        """Updates the agent's weights both in-memory and in the config file."""
+        """Updates the agent's weights in-memory, in the config file, and appends a
+        timestamped entry to the weight-history log so the drift of the learned
+        policy over time is auditable (and chartable — see scripts/plot_weight_drift.py)."""
         self.weights = new_weights
         self.expectimax_agent = ExpectimaxAgent(depth=2, weights=self.weights)
         try:
@@ -90,6 +92,15 @@ class SupervisorCore:
             print(f"Successfully updated weights in {self.weights_file}")
         except IOError as e:
             print(f"Error: Could not save updated weights to {self.weights_file}: {e}")
+
+        # Append to the append-only weight-history log for drift tracking.
+        try:
+            from datetime import datetime as _dt
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            with open(self.data_dir / "weight_history.jsonl", "a") as f:
+                f.write(json.dumps({"ts": _dt.utcnow().isoformat(), "weights": new_weights}) + "\n")
+        except Exception as e:  # never let history logging break training
+            print(f"Warning: could not append weight history: {e}")
 
 
     async def monitor_agent(

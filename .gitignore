@@ -37,15 +37,15 @@ deliverables/
 supervisor_data/pending_approvals/
 
 # VORTEX-OS skill runtime artifacts (both flavors)
-vortex-os/swarms/
-vortex-os/tasks/
-vortex-os/memory/
-vortex-os/tmp/
-vortex-os/deliverables/
-vortex-os/state/pending_approvals/
-vortex-os/state/self_healing_log.txt
-vortex-os-v3/state/
-vortex-os-v3/memory/
-vortex-os-v3/.orchestr8r/
-vortex-os-v3/adapters/*.sh
-!vortex-os-v3/adapters/minimax_m3.sh
+implementations/vortex-os/swarms/
+implementations/vortex-os/tasks/
+implementations/vortex-os/memory/
+implementations/vortex-os/tmp/
+implementations/vortex-os/deliverables/
+implementations/vortex-os/state/pending_approvals/
+implementations/vortex-os/state/self_healing_log.txt
+implementations/vortex-os-v3/state/
+implementations/vortex-os-v3/memory/
+implementations/vortex-os-v3/.orchestr8r/
+implementations/vortex-os-v3/adapters/*.sh
+!implementations/vortex-os-v3/adapters/minimax_m3.sh
