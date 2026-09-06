@@ -28,6 +28,12 @@ class Orchestrator:
     path is retained for backward compatibility with the MCP server.
     """
 
+    # Token budget per worker deliverable. Deliverables (code, test files) can be
+    # long; too small a budget truncates the output and the auditor correctly
+    # rejects it as incomplete.
+    WORKER_MAX_TOKENS = 6000
+    SYNTHESIS_MAX_TOKENS = 2048
+
     def __init__(self, supervisor: SupervisorCore, llm_client: LLMClient):
         self.supervisor = supervisor
         self.llm_client = llm_client
@@ -311,7 +317,7 @@ class Orchestrator:
                     f"\n\nA previous attempt FAILED the supervisor's audit. "
                     f"You MUST address this: {correction_hint}"
                 )
-            worker_env = await self.llm_client.complete(prompt, max_tokens=1024)
+            worker_env = await self.llm_client.complete(prompt, max_tokens=self.WORKER_MAX_TOKENS)
             output = worker_env.get("text", "") or ""
             task.output_text = output
             trace.dispatch(f"worker produced {len(output)} chars"
@@ -370,7 +376,8 @@ class Orchestrator:
                 task.output_data = {"supervisor": validation}
                 inter = validation.get("intervention_result", {})
                 if inter.get("intervention_required"):
-                    trace.audit(f"Supervisor engine flagged intervention: {inter.get('intervention_level', 'unknown')}")
+                    level = inter.get("level") or inter.get("intervention_level") or "flagged"
+                    trace.audit(f"Supervisor engine flagged intervention: {level}")
         except Exception as e:
             # Non-fatal: the M3 audit is the authoritative verification.
             trace.info(f"(supervisor engine pass skipped: {e})")
@@ -401,7 +408,7 @@ class Orchestrator:
         """Synthesize a final verified deliverable from all audited task outputs."""
         outputs = {t.name: t.output_text for t in project.tasks.values()}
         prompt = get_synthesis_prompt(project.description, outputs)
-        env = await self.llm_client.complete(prompt, max_tokens=1024, temperature=0.3)
+        env = await self.llm_client.complete(prompt, max_tokens=self.SYNTHESIS_MAX_TOKENS, temperature=0.3)
         final = env.get("text", "")
         trace.synthesis(final if final else "(no synthesis text produced)")
         return final
@@ -446,7 +453,7 @@ class Orchestrator:
         """Async body of a single threaded task: run worker, supervisor, and audit."""
         # Delegate to an M3 worker.
         prompt = get_worker_prompt(task.description, task.name, task.description, {})
-        worker_env = await self.llm_client.complete(prompt, max_tokens=1024)
+        worker_env = await self.llm_client.complete(prompt, max_tokens=self.WORKER_MAX_TOKENS)
         output = worker_env.get("text", "") or f"Completed: {task.description}"
         task.output_text = output
 

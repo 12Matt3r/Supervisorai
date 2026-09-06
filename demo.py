@@ -75,8 +75,15 @@ MOCK_ISSUE = (
     "Bug report (issue #482): `apply_discount` in billing/discount.py returns a "
     "negative price when the discount percent is greater than 100, and crashes "
     "with a TypeError when percent is None. Fix the function to clamp the percent "
-    "to the 0-100 range, treat a missing percent as 0, and add regression tests. "
-    "Produce a verified summary suitable for a pull request."
+    "to the 0-100 range and treat a missing percent as 0, and add regression "
+    "tests covering percent>100, percent=None, and a normal discount.\n\n"
+    "IMPORTANT for the worker team: you are authoring artifacts (analysis, a code "
+    "patch, a pytest test file, a static coverage review, and a PR summary) for a "
+    "human to review. You do NOT have a code execution environment, so never "
+    "claim to have run tests or report fabricated test output. The verification "
+    "step must be a STATIC review that inspects the written tests and argues, from "
+    "the code alone, that they cover every required edge case. Finish with a "
+    "verified summary suitable for a pull request."
 )
 
 

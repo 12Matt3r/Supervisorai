@@ -26,6 +26,11 @@ Context from completed upstream tasks:
 Produce the concrete deliverable for THIS task only. Be specific and actionable
 (code, a diff, a test, an analysis, or a summary as appropriate). Do not restate
 the instructions. If you make an assumption, state it explicitly.
+
+Keep the deliverable focused and, above all, COMPLETE: finish every code block and
+sentence rather than trailing off. A truncated or unfinished deliverable will be
+rejected by the supervisor's audit, so prefer a tighter, complete answer over a
+long one that gets cut off.
 """
 
 
@@ -49,7 +54,7 @@ Validation conditions this output MUST satisfy:
 
 Worker's output:
 ```
-{output[:4000]}
+{output[:16000]}
 ```
 
 Audit the output. Check whether it (a) succeeds at the task, (b) contains any

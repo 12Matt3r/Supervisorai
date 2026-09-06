@@ -22,6 +22,8 @@ env/
 
 # Runtime artifacts
 supervisor_data/audit.jsonl
+supervisor_data/patterns.json
+supervisor_data/feedback.json
 supervisor_data/*.log
 supervisor.log
 *.pyc
