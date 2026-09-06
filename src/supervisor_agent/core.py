@@ -162,9 +162,13 @@ class SupervisorCore:
             goals=task.instructions
         )
 
-        # Combine the scores (e.g., 60% heuristic, 40% LLM)
-        blended_quality_score = (quality_metrics.confidence_score * 0.6) + (llm_evaluation.get("overall_score", 0) * 0.4)
-        quality_metrics.confidence_score = blended_quality_score # Update the main quality score
+        # Combine the scores (60% heuristic, 40% LLM judge) only when a real
+        # judge opinion is available. When unconfigured/mocked, the judge returns
+        # a placeholder score with llm_available=False; blending that in would
+        # mask genuinely poor outputs, so we rely on the heuristic alone.
+        if llm_evaluation.get("llm_available", True):
+            blended_quality_score = (quality_metrics.confidence_score * 0.6) + (llm_evaluation.get("overall_score", 0) * 0.4)
+            quality_metrics.confidence_score = blended_quality_score # Update the main quality score
 
         task.quality_metrics = quality_metrics
 

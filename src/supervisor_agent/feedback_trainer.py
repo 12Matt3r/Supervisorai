@@ -61,6 +61,7 @@ class FeedbackTrainer:
             return self.current_weights
 
         updated_weights = self.current_weights.copy()
+        updates_applied = 0
 
         for feedback_item in feedback_data:
             try:
@@ -85,10 +86,18 @@ class FeedbackTrainer:
                 for i, key in enumerate(self.heuristic_keys):
                     adjustment = self.learning_rate * (h_vec_correct[i] - h_vec_incorrect[i])
                     updated_weights[key] += adjustment
+                updates_applied += 1
 
             except KeyError as e:
                 print(f"Skipping malformed feedback item: missing key {e}")
                 continue
+
+        # If no feedback item was actually applied, the weights are unchanged —
+        # return them verbatim rather than re-normalizing (which would introduce
+        # spurious floating-point drift into already-valid weights).
+        if updates_applied == 0:
+            print("No valid feedback items applied; weights unchanged.")
+            return self.current_weights
 
         # Normalize weights to sum to 1 to prevent them from growing indefinitely
         total_weight = sum(updated_weights.values())
