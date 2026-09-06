@@ -1,9 +1,9 @@
 {
   "name": "universal-multi-agent-orchestrator",
-  "display_name": "Universal Multi-Agent Orchestrator v3.1 — JIT-Native Edition",
+  "display_name": "Universal Multi-Agent Orchestrator v3.1 \u2014 JIT-Native Edition",
   "version": "3.1.0",
   "description": "A production-grade, pure-Bash sub-agent orchestration skill that plans, dispatches, supervises, and verifies parallel AI agents over a unified 8-Invariant envelope. Ships with 30+ ready-to-run static agents and a Just-In-Time skill bridge that queries a native tool library and falls back to web research to synthesize new agent JSON envelopes on the fly.",
-  "author": "MiniMax Agent",
+  "author": "12matt3r (built with MiniMax Agent)",
   "license": "MIT",
   "tags": [
     "orchestrator",

@@ -396,4 +396,4 @@ MIT
 
 ## Author
 
-MiniMax Agent
+12matt3r — originally built for MiniMax's Agent Hackathon (Honorable Mention), rebuilt with Claude (Claude Code).

@@ -1,12 +1,12 @@
 {
   "skill_id": "minimax-skill-vortex-os-7c3a9f1e",
   "name": "VORTEX-OS",
-  "display_name": "VORTEX-OS — Native Autonomous Studio Command Center",
+  "display_name": "VORTEX-OS \u2014 Native Autonomous Studio Command Center",
   "version": "4.0.0",
   "tagline": "Stop managing tasks; start commanding a native digital workforce.",
-  "description": "VORTEX-OS is the enterprise-grade brain for your digital studio, built exclusively to harness MiniMax's internal multimodal engines. VORTEX-OS replaces manual prompting with a hierarchical, self-governing swarm of specialized agents. It plans, executes, and quality-controls complex projects entirely in-house — from narrative design and native UI/app scaffolding to local ffmpeg audio processing and Hailuo video generation. Stop managing tasks; start commanding a native digital workforce.",
+  "description": "VORTEX-OS is the enterprise-grade brain for your digital studio, built exclusively to harness MiniMax's internal multimodal engines. VORTEX-OS replaces manual prompting with a hierarchical, self-governing swarm of specialized agents. It plans, executes, and quality-controls complex projects entirely in-house \u2014 from narrative design and native UI/app scaffolding to local ffmpeg audio processing and Hailuo video generation. Stop managing tasks; start commanding a native digital workforce.",
   "short_description": "VORTEX-OS: Native Autonomous Studio Command Center.",
-  "author": "MiniMax Agent",
+  "author": "12matt3r (built with MiniMax Agent)",
   "license": "MIT",
   "category": "automation",
   "subcategory": "multi-agent-orchestration",
@@ -46,7 +46,7 @@
       "Automating multi-agent orchestration with universe-constrained creativity (When Ocean Meets Sky, Book of the Fading Age)",
       "Native Hailuo video generation and MiniMax image generation pipelines",
       "Local ffmpeg audio processing, sample manipulation, and Foley synthesis",
-      "Internal app scaffolding — brainstorming, architecting, and coding complex digital environments for the MiniMax ecosystem",
+      "Internal app scaffolding \u2014 brainstorming, architecting, and coding complex digital environments for the MiniMax ecosystem",
       "Long-running creative projects requiring continuity enforcement (visual novels, games, series, lore universes)",
       "Tasks requiring auditable decision-making with full audit trails",
       "High-stakes deployments that need Human-in-the-Loop approval",
@@ -70,7 +70,12 @@
   },
   "requirements": {
     "shell": "bash >= 4.0",
-    "system_tools": ["python3", "jq", "sqlite3", "ffmpeg"],
+    "system_tools": [
+      "python3",
+      "jq",
+      "sqlite3",
+      "ffmpeg"
+    ],
     "minimax_engines": [
       "minimax-music",
       "minimax-media",
@@ -104,10 +109,10 @@
   ],
   "architecture": {
     "tiers": [
-      "T0: General Manager (Apex — strategic entry, master decomposition)",
-      "T1: Store Supervisor (Domain Strategy — Golden Path & resource allocation)",
-      "T2: Shift Supervisor (Tactical QA — Continuity Engine, sandbox, HITL)",
-      "T3: The Crew (Specialized Workers — writer, media.native, coder, researcher, analyst, designer)"
+      "T0: General Manager (Apex \u2014 strategic entry, master decomposition)",
+      "T1: Store Supervisor (Domain Strategy \u2014 Golden Path & resource allocation)",
+      "T2: Shift Supervisor (Tactical QA \u2014 Continuity Engine, sandbox, HITL)",
+      "T3: The Crew (Specialized Workers \u2014 writer, media.native, coder, researcher, analyst, designer)"
     ],
     "pillars": [
       "Hierarchical Decomposition (4-tier chain of command)",

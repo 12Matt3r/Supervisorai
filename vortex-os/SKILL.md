@@ -17,7 +17,7 @@ description: |
 
   DO NOT TRIGGER when: simple one-line code requests, pure chat / Q&A tasks, single-file
   edits with no cross-domain coordination, read-only research questions.
-author: MiniMax Agent
+author: 12matt3r (built with MiniMax Agent)
 license: MIT
 category: automation
 subcategory: multi-agent-orchestration

@@ -306,8 +306,19 @@ This project has a rich roadmap for future development.
 *   **Decentralized Swarm Orchestration:** Move from a single orchestrator to a decentralized swarm of orchestrators.
 *   **Embodied AI & Physical World Control:** Connect the orchestrator to physical hardware (robotics, IoT).
 
-## 7. Credits
+## 7. Credits & acknowledgments
 
-This project was developed as part of the Minimax Agent Hackathon.
+**Created and directed by [12matt3r](http://doesntmatter.us).**
 
-**Lead AI Software Engineer:** Jules
+SupervisorAI was **originally built for MiniMax's Agent Hackathon**, where it earned
+an **Honorable Mention** (with a prize). It has been substantially rebuilt and
+expanded since — into the MiniMax-M3–powered supervisory engine documented here.
+
+| Role | |
+|---|---|
+| **Concept, direction & original system** | **[12matt3r](http://doesntmatter.us)** |
+| **Software design, engineering & MiniMax-M3 integration** *(this build)* | **[Claude](https://claude.com/claude-code)** — Anthropic's Claude Code (Opus) |
+| **Original hackathon build** | Jules |
+| **Reasoning model** | **MiniMax-M3**, served on **GMI Cloud** |
+
+*Directed by 12matt3r · rebuilt with Claude · powered by MiniMax.*

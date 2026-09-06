@@ -2,7 +2,7 @@
   "name": "universal-multi-agent-orchestrator",
   "version": "3.1.0",
   "description": "Production-grade pure-Bash sub-agent orchestrator with JIT skill bridge, 8-Invariant envelopes, adversarial shielding, and continuity enforcement. Ships with 30+ static agents.",
-  "author": "MiniMax Agent",
+  "author": "12matt3r (built with MiniMax Agent)",
   "license": "MIT",
   "entry": "skill.sh",
   "main": "skill.sh",

@@ -3,7 +3,7 @@
   "project": {
     "name": "MiniMax Agent Roster",
     "version": "2.0.0",
-    "author": "MiniMax",
+    "author": "12matt3r (built with MiniMax Agent)",
     "description": "Reference config wiring the 30-agent catalog to the MiniMax Agent ecosystem."
   },
   "paths": {
