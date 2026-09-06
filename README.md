@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="SupervisorAI — a stern charcoal supervisor robot in a bow tie above the SUPERVISOR AI wordmark" width="300">
+</p>
+
 # SupervisorAI
 
 > ## 🏆 **MiniMax Week Hackathon Entry — Track 1: Reasoning**
