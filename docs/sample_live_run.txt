@@ -1,9 +1,8 @@
-Agent registered/updated: ManagedAgent(agent_id='w-analyst', name='CodeAnalyst', capabilities=['code_analysis'], status=<AgentStatus.IDLE: 'IDLE'>, current_task_id=None, last_seen=1788674482.1650803)
-Agent registered/updated: ManagedAgent(agent_id='w-coder', name='CodeEditor', capabilities=['code_edit'], status=<AgentStatus.IDLE: 'IDLE'>, current_task_id=None, last_seen=1788674482.16513)
-Agent registered/updated: ManagedAgent(agent_id='w-tester', name='TestWriter', capabilities=['test_execution'], status=<AgentStatus.IDLE: 'IDLE'>, current_task_id=None, last_seen=1788674482.1651373)
 [INFO] Model backend: MiniMax-M3 (live via GMI Cloud)
 [INFO] Endpoint: https://api.gmi-serving.com/v1/messages   Model: 
 MiniMaxAI/MiniMax-M3
+[INFO] Specialist roster (8): analyst.strategic, coder.javascript, coder.python,
+coder.typescript, researcher.web, reviewer.code, writer.docs, writer.narrative
 ────────────────────────────────── MOCK REPO ───────────────────────────────────
 [INFO] billing/discount.py:
 [INFO]     def apply_discount(price, percent):
@@ -35,96 +34,67 @@ negative price,
 │     return price - (price * percent / 100)                                   │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+[INFO] Specialist roster: analyst.strategic, coder.javascript, coder.python, 
+coder.typescript, researcher.web, reviewer.code, writer.docs, writer.narrative
+[INFO] Continuity rules in force: 2
 ───────────────────────────────────── PLAN ─────────────────────────────────────
 [SUPERVISOR - M3] Decomposing goal into a validated task DAG...
 Querying MiniMax-M3 for task decomposition...
 Project goal submitted and decomposed by LLM: Fix issue #482: apply_discount
-[SUPERVISOR - M3] Plan holds 5 tasks: Analyze the apply_discount bug -> Author 
-the code patch for apply_discount -> Author pytest regression tests -> Static 
-review of test coverage -> Draft PR summary for human review
+[SUPERVISOR - M3] Plan holds 5 tasks: Analyze Bug Report and Root 
+Cause[analyst.strategic] -> Implement the Fix in 
+billing/discount.py[coder.python] -> Write pytest Regression Tests[coder.python]
+-> Static Coverage Review of Tests Against Fix[reviewer.code] -> Draft PR 
+Summary[writer.docs]
 ─────────────────────────────────── EXECUTE ────────────────────────────────────
-[DISPATCH] worker → 'Analyze the apply_discount bug'  [attempt 1/3]
-[DISPATCH] worker produced 5405 chars
-[AUDIT] MiniMax-M3 verifying output of 'Analyze the apply_discount bug' against 
-the plan...
-[PASS] 'Analyze the apply_discount bug' verified (confidence 0.92).
-[DISPATCH] worker → 'Author the code patch for apply_discount'  [attempt 1/3]
-[DISPATCH] worker produced 3225 chars
-[AUDIT] MiniMax-M3 verifying output of 'Author the code patch for 
-apply_discount' against the plan...
-[PASS] 'Author the code patch for apply_discount' verified (confidence 0.98).
-[DISPATCH] worker → 'Author pytest regression tests'  [attempt 1/3]
-[DISPATCH] worker produced 6767 chars
-[AUDIT] MiniMax-M3 verifying output of 'Author pytest regression tests' against 
-the plan...
-[PASS] 'Author pytest regression tests' verified (confidence 0.95).
-[DISPATCH] worker → 'Static review of test coverage'  [attempt 1/3]
-[DISPATCH] worker produced 4054 chars
-[AUDIT] MiniMax-M3 verifying output of 'Static review of test coverage' against 
-the plan...
-[DRIFT DETECTED] 'Static review of test coverage': The reviewer performed the 
-static review correctly in the analysis portion but drifted into contradiction 
-in the PR summary by claiming the suite already confirms coverage for the 
-missing cases. The summary directly contradicts the reviewer's own findings, 
-which is a logical error that would mislead a human reviewer. Additionally, 
-specific line numbers and test names were fabricated without the file content 
-being provided.
-[RECOVERY] Audit FAILED for 'Static review of test coverage': The static 
-review's task is to verify that the authored tests cover percent>100, 
-percent=None, and a normal discount. The reviewer correctly identifies that the 
-tests only cover the normal discount case, but then writes a PR summary claiming
-the suite 'confirms the contract' across 'a normal case, percent > 100, and 
-percent = None' — this is contradictory and falsely claims coverage the reviewer
-just established is missing.; The reviewer references specific line numbers 
-(e.g., 'line 22') and a test name 'test_normal_discount_returns_expected_price' 
-without having been shown the actual test file content. These details are 
-fabricated/hallucinated since the test file was never provided in the prompt.; 
-The recommended example values (e.g., `apply_discount(200, 150) == 200` or 
-`apply_discount(200, None) == 200`) are reasonable guesses but assume a specific
-clamp behavior (clamp to original price) that may not match the actual fix; the 
-review should note this as an assumption rather than asserting the expected 
-return value.. Re-prompting worker with fix hint.
-[DISPATCH] worker (correction) → 'Static review of test coverage'  [attempt 2/3]
-[DISPATCH] worker produced 5514 chars
-[AUDIT] MiniMax-M3 verifying output of 'Static review of test coverage' against 
-the plan...
-[PASS] 'Static review of test coverage' verified (confidence 0.95).
-[DISPATCH] worker → 'Draft PR summary for human review'  [attempt 1/3]
-[DISPATCH] worker produced 3415 chars
-[AUDIT] MiniMax-M3 verifying output of 'Draft PR summary for human review' 
+[DISPATCH] analyst.strategic → 'Analyze Bug Report and Root Cause'  [attempt 
+1/3]
+[DISPATCH] analyst.strategic produced 5485 chars
+[AUDIT] MiniMax-M3 verifying output of 'Analyze Bug Report and Root Cause' 
 against the plan...
-[RECOVERY] Audit FAILED for 'Draft PR summary for human review': The PR summary 
-claims a concrete implementation detail ('Returns float(price) immediately when 
-percent is None; Otherwise coerces percent to a float, clamps it via max(0.0, 
-min(float(percent), 100.0))...') without quoting the actual patched code from 
-billing/discount.py. Since this is a code-review artifact, the worker should 
-either quote the exact patched function or explicitly note they are describing 
-the fix conceptually rather than transcribing it, to avoid implying a specific 
-implementation that may not match what is in the diff.; The summary mentions 'A 
-float-precision test (test_discount_with_float_price_and_percent) is also 
-retained.' This implies knowledge of an existing test file that the worker may 
-not have actually inspected. The original task only required adding regression 
-tests; asserting the existence/retention of a pre-existing test risks 
-hallucination if no such test exists in tests/test_discount.py.. Re-prompting 
-worker with fix hint.
-[DISPATCH] worker (correction) → 'Draft PR summary for human review'  [attempt 
-2/3]
-[DISPATCH] worker produced 2126 chars
-[AUDIT] MiniMax-M3 verifying output of 'Draft PR summary for human review' 
-against the plan...
-[PASS] 'Draft PR summary for human review' verified (confidence 0.95).
+[PASS] 'Analyze Bug Report and Root Cause' verified (confidence 0.96).
+[INFO]   ↳ deliverable written: /home/user/Supervisorai/deliverables/analysis.md
+(5485 chars)
+[DISPATCH] coder.python → 'Implement the Fix in billing/discount.py'  [attempt 
+1/3]
+[DISPATCH] coder.python produced 2177 chars
+[AUDIT] MiniMax-M3 verifying output of 'Implement the Fix in 
+billing/discount.py' against the plan...
+[PASS] 'Implement the Fix in billing/discount.py' verified (confidence 0.95).
+[RECOVERY] [HITL] High-stakes task 'Implement the Fix in billing/discount.py' 
+halted — awaiting approval (task_id: write_fix).
+[RECOVERY] [HITL] Operator reviewing high-stakes task 'Implement the Fix in 
+billing/discount.py' (deliverable: discount.py) ... APPROVED.
+[PASS] [HITL] Operator APPROVED 'Implement the Fix in billing/discount.py'.
+[INFO]   ↳ deliverable written: /home/user/Supervisorai/deliverables/discount.py
+(2177 chars)
+[DISPATCH] coder.python → 'Write pytest Regression Tests'  [attempt 1/3]
+[DISPATCH] coder.python produced 5047 chars
+[AUDIT] MiniMax-M3 verifying output of 'Write pytest Regression Tests' against 
+the plan...
+[PASS] 'Write pytest Regression Tests' verified (confidence 0.95).
+[INFO]   ↳ deliverable written: 
+/home/user/Supervisorai/deliverables/test_discount.py (5047 chars)
+[DISPATCH] reviewer.code → 'Static Coverage Review of Tests Against Fix'  
+[attempt 1/3]
+[DISPATCH] reviewer.code produced 8947 chars
+[AUDIT] MiniMax-M3 verifying output of 'Static Coverage Review of Tests Against 
+Fix' against the plan...
+[PASS] 'Static Coverage Review of Tests Against Fix' verified (confidence 0.92).
+[INFO]   ↳ deliverable written: /home/user/Supervisorai/deliverables/review.md 
+(8947 chars)
+[DISPATCH] writer.docs → 'Draft PR Summary'  [attempt 1/3]
+[DISPATCH] writer.docs produced 4033 chars
+[AUDIT] MiniMax-M3 verifying output of 'Draft PR Summary' against the plan...
+[PASS] 'Draft PR Summary' verified (confidence 0.96).
+[INFO]   ↳ deliverable written: 
+/home/user/Supervisorai/deliverables/pr_summary.md (4033 chars)
 ────────────────────────────────── SYNTHESIS ───────────────────────────────────
 [SUPERVISOR - M3] All tasks passed audit. Synthesizing verified final result...
-[SYNTHESIS] # Final Deliverable — Issue #482: Fix `apply_discount` validation
+[SYNTHESIS] # Final Deliverable — Issue #482: Fix `apply_discount` in 
+`billing/discount.py`
 
-This artifact bundles the supervisor‑verified output of the worker team: the 
-static analysis of the bug, the code patch, the regression test file, the static
-coverage review, and the PR summary. It is intended for human review. No code 
-has been executed by the agent team.
-
----
-
-## 1. Bug analysis (static)
+## 1. Bug analysis (synthesized)
 
 `billing/discount.py` defines:
 
@@ -133,87 +103,119 @@ def apply_discount(price, percent):
     return price - (price * percent / 100)
 ```
 
-Two defects, both reproducible by inspecting the expression algebraically:
+Two defects, both caused by the absence of input validation:
 
-| Defect | Trigger | Expression evaluated | Returned value | Why it's wrong |
-|---|---|---|---|---|
-| Negative price on over‑discount | `apply_discount(100, 150)` | `100 - (100 * 
-150 / 100)` = `100 - 150.0` | `-50.0` | A monetary price cannot be negative; the
-identity only yields a valid price for `percent ∈ [0, 100]`. |
-| `TypeError` on `None` percent | `apply_discount(100, None)` | `100 * None` | 
-raises `TypeError` | `None` cannot participate in numeric arithmetic. |
+| Defect | Trigger | Symptom | Root cause |
+|---|---|---|---|
+| Negative price | `apply_discount(100, 150)` | Returns `-50.0` | No upper-bound
+check on `percent`; discount term exceeds `price`. |
+| `TypeError` | `apply_discount(100, None)` | `TypeError: unsupported operand 
+type(s) for *: 'int' and 'NoneType'` | No `None` guard; missing percent is not 
+normalized to `0`. |
 
-Expected contract after the fix:
-
-- `percent` is treated as `0` when it is `None`.
-- `percent` is clamped into `[0, 100]` before the arithmetic: `> 100` becomes 
-`100` (full discount, price → `0` for `price ≥ 0`); `< 0` becomes `0` (no 
-discount).
+Both must be fixed by (a) treating `None` as `0`, and (b) clamping `percent` to 
+`[0, 100]` before applying the formula.
 
 ---
 
-## 2. Code patch (`billing/discount.py`)
-
-```diff
---- a/billing/discount.py
-+++ b/billing/discount.py
-@@ -1,4 +1,8 @@
- def apply_discount(price, percent):
--    # BUG: does not validate percent; a percent > 100 yields a negative price,
--    # and a None percent raises a TypeError at runtime.
-+    # Treat a missing percent as 0 (no discount).
-+    if percent is None:
-+        percent = 0
-+    # Clamp percent to the valid range [0, 100] so the result is never 
-negative.
-+    percent = min(max(percent, 0), 100)
-     return price - (price * percent / 100)
-```
-
-**Full corrected file:**
+## 2. Code patch — `billing/discount.py`
 
 ```python
+"""Discount utilities for the billing package.
+
+This module exposes :func:`apply_discount`, which computes a discounted price
+from a base ``price`` and a discount ``percent``.
+
+Behavior contract
+-----------------
+* If ``percent`` is ``None``, it is treated as ``0`` (no discount).
+* ``percent`` is clamped to the inclusive range ``[0, 100]``. Values greater
+  than ``100`` are treated as ``100`` (the price becomes zero), and values
+  less than ``0`` are treated as ``0`` (no discount).
+* The returned price is therefore guaranteed to be in ``[0, price]`` for any
+  numeric ``price``; it is never negative.
+* The original two-argument signature ``apply_discount(price, percent)`` is
+  preserved.
+"""
+
+
 def apply_discount(price, percent):
-    # Treat a missing percent as 0 (no discount).
+    """Return ``price`` after applying a discount of ``percent`` percent.
+
+    Parameters
+    ----------
+    price : numeric
+        The original (pre-discount) price. May be any numeric type that
+        supports arithmetic with floats (``int``, ``float``, ``Decimal``,
+        etc.).
+    percent : numeric or None
+        The discount percentage. ``None`` is treated as ``0``. The value is
+        clamped to the inclusive range ``[0, 100]`` before being applied.
+
+    Returns
+    -------
+    numeric
+        ``price - (price * clamped_percent / 100)``, which lies in
+        ``[0, price]`` for any numeric ``price``.
+
+    Examples
+    --------
+    >>> apply_discount(100, 20)
+    80.0
+    >>> apply_discount(100, None)
+    100
+    >>> apply_discount(100, 150)
+    0
+    >>> apply_discount(100, 0)
+    100
+    >>> apply_discount(100, 100)
+    0
+    """
     if percent is None:
         percent = 0
-    # Clamp percent to the valid range [0, 100] so the result is never negative.
-    percent = min(max(percent, 0), 100)
+    if percent < 0:
+        percent = 0
+    elif percent > 100:
+        percent = 100
     return price - (price * percent / 100)
 ```
 
-### Rationale (defended by code, not by execution)
+Notes for the human reviewer:
 
-1. The `is None` check must come **before** any numeric operation. `max(percent,
-0)` and `min(...)` on `None` raise `TypeError`, so order matters: first coerce 
-`None → 0`, then clamp.
-2. The clamp `min(max(percent, 0), 100)` is the standard idiom for "clamp to 
-`[lo, hi]`" and produces the exact values required by the contract: `< 0` → `0`,
-`> 100` → `100`, in‑range unchanged.
-3. The arithmetic is unchanged, so for any in‑range `percent` the function's 
-output is bit‑identical to the original (modulo Python's normal `int/int → 
-float` division).
-4. Out of scope: `price` validation and non‑numeric `percent` (e.g. strings) — 
-issue #482 explicitly scopes the fix to the `percent` argument, and these would 
-already raise `TypeError` from the original arithmetic, so the fix does not 
-regress them.
+- The `None` check is written as `if percent is None` (not `if not percent`) so 
+that a legitimate `percent == 0` is **not** coerced to `None` and re-overwritten
+to `0` by accident (it would still be `0`, but the explicit `is None` makes the 
+intent unambiguous and future-proof against a hypothetical `percent == False` 
+caller).
+- The clamp uses `<` / `>`, not `<=` / `>=`, so the boundary values `0` and 
+`100` pass through unchanged — consistent with the docstring saying *inclusive* 
+`[0, 100]`.
+- The arithmetic expression is unchanged from the original, preserving identical
+results for all in-range inputs.
+- The public signature is preserved; this is a pure bug fix.
 
 ---
 
-## 3. Regression test file (`tests/test_discount.py`)
+## 3. Regression tests — `tests/test_discount.py`
 
 ```python
 """Regression tests for ``billing.discount.apply_discount``.
 
-These tests cover the bugs reported in issue #482:
+These tests pin the behavior contract of :func:`apply_discount` after the fix
+for bug report #482:
 
-1. ``apply_discount`` returned a negative price when ``percent > 100``.
-2. ``apply_discount`` crashed with ``TypeError`` when ``percent`` was ``None``.
+* ``percent`` greater than ``100`` must clamp to ``100`` (free item, price = 0),
+  never producing a negative price.
+* ``percent`` equal to ``None`` must be treated as ``0`` (no discount), never
+  raising a ``TypeError``.
+* Normal discounts in ``[0, 100]`` continue to reduce the price by the
+  requested percentage.
 
-The fix normalises ``percent`` before the arithmetic: ``None`` is treated as
-``0`` and the value is then clamped into the ``[0, 100]`` range. The tests
-below assert that contract.
+Additional edge cases (``percent == 0``, ``percent == 100``, ``percent < 0``)
+are included to lock in the clamping behavior at the boundaries.
 """
+
+import math
 
 import pytest
 
@@ -221,134 +223,132 @@ from billing.discount import apply_discount
 
 
 # ---------------------------------------------------------------------------
-# Normal / in-range discounts
+# The three required regression cases from issue #482
 # ---------------------------------------------------------------------------
 
-def test_normal_discount_returns_expected_price():
-    """A standard in-range discount produces the expected discounted price."""
-    # 10% off 200 -> 180
-    assert apply_discount(200, 10) == 180
 
+def test_percent_greater_than_100_clamps_to_zero_price():
+    """A discount above 100% must clamp to 100%, yielding price == 0.
 
-def test_discount_with_float_price():
-    """Float inputs follow the same arithmetic without surprise."""
-    # 25% off 80.0 -> 60.0
-    assert apply_discount(80.0, 25) == 60.0
-
-
-# ---------------------------------------------------------------------------
-# Regression cases for issue #482
-# ---------------------------------------------------------------------------
-
-def test_percent_above_100_is_clamped_to_full_discount():
-    """percent > 100 must be clamped to 100, producing a non-negative price.
-
-    Regression for issue #482: previously this returned a negative price.
+    This is the primary regression for the original bug: previously this
+    case returned a negative price because ``percent`` was not validated.
     """
-    # 150% off 100 must clamp to 100% off -> 0, never -50.
-    assert apply_discount(100, 150) == 0
-
-
-def test_percent_well_above_100_is_clamped_to_full_discount():
-    """A very large percent is also clamped; the result is never negative."""
-    # 9_999% off 50 must clamp to 100% off -> 0, never a large negative number.
-    result = apply_discount(50, 9_999)
+    assert apply_discount(50.0, 150) == 0
+    assert apply_discount(99.99, 200) == 0
+    # Even an absurd percent must not produce a negative result.
+    result = apply_discount(10.0, 1_000_000)
     assert result == 0
     assert result >= 0
 
 
-def test_percent_below_zero_is_clamped_to_no_discount():
-    """percent < 0 is clamped to 0 (no discount)."""
-    assert apply_discount(100, -25) == 100
+def test_percent_none_is_treated_as_no_discount():
+    """A ``None`` percent must mean "no discount", not a crash.
 
-
-def test_none_percent_is_treated_as_zero_discount():
-    """A None percent must not raise; it is treated as 0.
-
-    Regression for issue #482: previously this raised TypeError.
+    Previously this raised ``TypeError`` from ``price * percent / 100``.
     """
-    # Must not raise.
+    # Plain int price must round-trip unchanged.
     assert apply_discount(100, None) == 100
+    # Float price must round-trip unchanged.
+    assert apply_discount(49.95, None) == 49.95
+    # Zero price with None percent is still zero.
+    assert apply_discount(0, None) == 0
+    # None percent must not affect the price in any way.
+    price = 123.45
+    assert apply_discount(price, None) == price
+
+
+def test_normal_discount_in_valid_range():
+    """A discount in [0, 100] must reduce the price by exactly that percent."""
+    # 20% off 100 -> 80
+    assert apply_discount(100, 20) == 80.0
+    # 25% off 80 -> 60
+    assert apply_discount(80, 25) == 60.0
+    # 10% off 49.95 -> 44.955
+    assert math.isclose(apply_discount(49.95, 10), 44.955)
+    # 1% off 200 -> 198
+    assert apply_discount(200, 1) == 198.0
 
 
 # ---------------------------------------------------------------------------
-# Defensive: ensure the function still raises for clearly invalid types
+# Boundary cases that lock in the clamping behavior
 # ---------------------------------------------------------------------------
 
-def test_non_numeric_percent_is_not_silently_accepted():
-    """Strings and other non-numeric percents remain TypeErrors (out of 
-scope)."""
-    with pytest.raises(TypeError):
-        apply_discount(100, "50")  # type: ignore[arg-type]
+
+def test_percent_zero_is_no_discount():
+    """``percent == 0`` is the explicit no-discount case."""
+    assert apply_discount(100, 0) == 100
+    assert apply_discount(0.01, 0) == 0.01
+
+
+def test_percent_exactly_100_makes_price_free():
+    """``percent == 100`` is the in-range free-item case."""
+    assert apply_discount(100, 100) == 0
+    assert apply_discount(42.5, 100) == 0
+
+
+def test_negative_percent_is_clamped_to_zero():
+    """A negative percent must clamp to 0, never inflate the price."""
+    assert apply_discount(100, -10) == 100
+    assert apply_discount(50, -50) == 50
+    assert apply_discount(10, -1_000_000) == 10
+
+
+# ---------------------------------------------------------------------------
+# Return-value guarantees
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "price, percent",
+    [
+        (100, 0),
+        (100, 50),
+        (100, 100),
+        (100, 150),          # clamps up
+        (100, -10),          # clamps down
+        (100, None),         # None
+        (49.95, None),
+        (0, None),
+        (0, 200),
+        (1_000_000, 99),
+    ],
+)
+def test_returned_price_is_never_negative_and_within_bounds(price, percent):
+    """For any (price, percent), the result lies in [0, price]."""
+    result = apply_discount(price, percent)
+    assert result >= 0
+    assert result <= price
 ```
 
-### Why this test file is sufficient (static argument)
+Notes for the human reviewer:
 
-- **Required case — `percent > 100`:** covered by 
-`test_percent_above_100_is_clamped_to_full_discount` (the canonical `150` case 
-from the bug report) and reinforced by 
-`test_percent_well_above_100_is_clamped_to_full_discount` (a very large value) 
-and the explicit `result >= 0` assertion, which directly guards against the 
-original negative‑price regression.
-- **Required case — `percent = None`:** covered by 
-`test_none_percent_is_treated_as_zero_discount`, which both invokes the 
-previously crashing input path and asserts the documented behaviour (return the 
-original price).
-- **Required case — normal discount:** covered by 
-`test_normal_discount_returns_expected_price` (`apply_discount(200, 10) == 180`)
-and `test_discount_with_float_price` (`apply_discount(80.0, 25) == 60.0`).
-- **Defensive boundary case — `percent < 0`:** covered by 
-`test_percent_below_zero_is_clamped_to_no_discount`, demonstrating the lower 
-side of the clamp works symmetrically.
-- **Out‑of‑scope guard:** `test_non_numeric_percent_is_not_silently_accepted` 
-documents that the fix intentionally does not widen its contract to accept 
-non‑numeric strings.
-
-Together these tests pin down both the regression fixes and the unchanged 
-happy‑path behaviour, so any future regression on either axis will be caught.
+- Tests are intentionally explicit (no `pytest.approx` magic in the hot path) so
+a reviewer can read the assertions and immediately see the expected numeric 
+value.
+- The parametrized invariant test 
+(`test_returned_price_is_never_negative_and_within_bounds`) is a safety net: if 
+any future change relaxes clamping, this test fails loudly with a concrete 
+failing row.
+- `math.isclose` is used only for the single case where float multiplication 
+cannot be represented exactly (`49.95 * 0.10`).
 
 ---
 
-## 4. Static coverage review (corrected)
+## 4. Static coverage review
 
-The earlier draft of the test file only contained the happy‑path tests and was 
-flagged as **incomplete** by the static coverage review. The version above has 
-been amended in response to that review:
-
-| Acceptance criterion (issue #482) | Test that covers it | Status |
-|---|---|---|
-| `percent > 100` must not yield a negative price | 
-`test_percent_above_100_is_clamped_to_full_discount`, 
-`test_percent_well_above_100_is_clamped_to_full_discount` | ✅ Covered |
-| `percent = None` must not raise `TypeError` | 
-`test_none_percent_is_treated_as_zero_discount` | ✅ Covered |
-| Normal discount still works | `test_normal_discount_returns_expected_price`, 
-`test_discount_with_float_price` | ✅ Covered |
-| Lower clamp boundary (`percent < 0`) | 
-`test_percent_below_zero_is_clamped_to_no_discount` | ✅ Covered (bonus) |
-| Out‑of‑scope: non‑numeric `percent` still raises | 
-`test_non_numeric_percent_is_not_silently_accepted` | ✅ Documented |
-
-The unused `math` import from the earlier draft has been removed; only `pytest` 
-is imported, and it is used by
+Static review only — **no tests were executed by the author
 [PASS] Goal COMPLETED — all dependencies verified.
-[INFO] Token usage: {'model': 'MiniMaxAI/MiniMax-M3', 'input_tokens': 20375, 
-'output_tokens': 11543, 'total_tokens': 31918, 'token_budget': None, 
+[INFO] Token usage: {'model': 'MiniMaxAI/MiniMax-M3', 'input_tokens': 17642, 
+'output_tokens': 10692, 'total_tokens': 28334, 'token_budget': None, 
 'budget_remaining': None}
 ──────────────────────────────────── RESULT ────────────────────────────────────
 [PASS] Verified PR summary produced. All dependencies passed audit.
 ╭──────────────────────────────────────────────────────────────────────────────╮
 │ VERIFIED PR SUMMARY                                                          │
-│ # Final Deliverable — Issue #482: Fix `apply_discount` validation            │
+│ # Final Deliverable — Issue #482: Fix `apply_discount` in                    │
+│ `billing/discount.py`                                                        │
 │                                                                              │
-│ This artifact bundles the supervisor‑verified output of the worker team: the │
-│ static analysis of the bug, the code patch, the regression test file, the    │
-│ static coverage review, and the PR summary. It is intended for human review. │
-│ No code has been executed by the agent team.                                 │
-│                                                                              │
-│ ---                                                                          │
-│                                                                              │
-│ ## 1. Bug analysis (static)                                                  │
+│ ## 1. Bug analysis (synthesized)                                             │
 │                                                                              │
 │ `billing/discount.py` defines:                                               │
 │                                                                              │
@@ -357,76 +357,88 @@ is imported, and it is used by
 │     return price - (price * percent / 100)                                   │
 │ ```                                                                          │
 │                                                                              │
-│ Two defects, both reproducible by inspecting the expression algebraically:   │
+│ Two defects, both caused by the absence of input validation:                 │
 │                                                                              │
-│ | Defect | Trigger | Expression evaluated | Returned value | Why it's wrong  │
-│ |                                                                            │
-│ |---|---|---|---|---|                                                        │
-│ | Negative price on over‑discount | `apply_discount(100, 150)` | `100 - (100 │
-│ * 150 / 100)` = `100 - 150.0` | `-50.0` | A monetary price cannot be         │
-│ negative; the identity only yields a valid price for `percent ∈ [0, 100]`. | │
-│ | `TypeError` on `None` percent | `apply_discount(100, None)` | `100 * None` │
-│ | raises `TypeError` | `None` cannot participate in numeric arithmetic. |    │
+│ | Defect | Trigger | Symptom | Root cause |                                  │
+│ |---|---|---|---|                                                            │
+│ | Negative price | `apply_discount(100, 150)` | Returns `-50.0` | No         │
+│ upper-bound check on `percent`; discount term exceeds `price`. |             │
+│ | `TypeError` | `apply_discount(100, None)` | `TypeError: unsupported        │
+│ operand type(s) for *: 'int' and 'NoneType'` | No `None` guard; missing      │
+│ percent is not normalized to `0`. |                                          │
 │                                                                              │
-│ Expected contract after the fix:                                             │
-│                                                                              │
-│ - `percent` is treated as `0` when it is `None`.                             │
-│ - `percent` is clamped into `[0, 100]` before the arithmetic: `> 100`        │
-│ becomes `100` (full discount, price → `0` for `price ≥ 0`); `< 0` becomes    │
-│ `0` (no discount).                                                           │
+│ Both must be fixed by (a) treating `None` as `0`, and (b) clamping `percent` │
+│ to `[0, 100]` before applying the formula.                                   │
 │                                                                              │
 │ ---                                                                          │
 │                                                                              │
-│ ## 2. Code patch (`billing/discount.py`)                                     │
-│                                                                              │
-│ ```diff                                                                      │
-│ --- a/billing/discount.py                                                    │
-│ +++ b/billing/discount.py                                                    │
-│ @@ -1,4 +1,8 @@                                                              │
-│  def apply_discount(price, percent):                                         │
-│ -    # BUG: does not validate percent; a percent > 100 yields a negative     │
-│ price,                                                                       │
-│ -    # and a None percent raises a TypeError at runtime.                     │
-│ +    # Treat a missing percent as 0 (no discount).                           │
-│ +    if percent is None:                                                     │
-│ +        percent = 0                                                         │
-│ +    # Clamp percent to the valid range [0, 100] so the result is never      │
-│ negative.                                                                    │
-│ +    percent = min(max(percent, 0), 100)                                     │
-│      return price - (price * percent / 100)                                  │
-│ ```                                                                          │
-│                                                                              │
-│ **Full corrected file:**                                                     │
+│ ## 2. Code patch — `billing/discount.py`                                     │
 │                                                                              │
 │ ```python                                                                    │
+│ """Discount utilities for the billing package.                               │
+│                                                                              │
+│ This module exposes :func:`apply_discount`, which computes a discounted      │
+│ price                                                                        │
+│ from a base ``price`` and a discount ``percent``.                            │
+│                                                                              │
+│ Behavior contract                                                            │
+│ -----------------                                                            │
+│ * If ``percent`` is ``None``, it is treated as ``0`` (no discount).          │
+│ * ``percent`` is clamped to the inclusive range ``[0, 100]``. Values greater │
+│   than ``100`` are treated as ``100`` (the price becomes zero), and values   │
+│   less than ``0`` are treated as ``0`` (no discount).                        │
+│ * The returned price is therefore guaranteed to be in ``[0, price]`` for any │
+│   numeric ``price``; it is never negative.                                   │
+│ * The original two-argument signature ``apply_discount(price, percent)`` is  │
+│   preserved.                                                                 │
+│ """                                                                          │
+│                                                                              │
+│                                                                              │
 │ def apply_discount(price, percent):                                          │
-│     # Treat a missing percent as 0 (no discount).                            │
-│     if percen                                                                │
+│     """Return ``price`` after applying a discount of ``percent`` percent.    │
+│                                                                              │
+│     Parameters                                                               │
+│     ----------                                                               │
+│     price : numeric                                                          │
+│         The original (pre-discount) price. May be any numeric type that      │
+│         supports arithmetic with floats (``int``, ``float``, ``Decimal``,    │
+│         etc.).                                                               │
+│     percent : numeric or None                                                │
+│         The discount percentage. ``None`` is treated as ``0``. The value is  │
+│         clampe                                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ───────────────────────────────── AUDIT LEDGER ─────────────────────────────────
-[INFO]   COMPLETED  | Analyze the apply_discount bug | verdict=pass conf=0.92 
-attempts=1
-[INFO]   COMPLETED  | Author the code patch for apply_discount | verdict=pass 
-conf=0.98 attempts=1
-[INFO]   COMPLETED  | Author pytest regression tests | verdict=pass conf=0.95 
-attempts=1
-[INFO]   COMPLETED  | Static review of test coverage | verdict=pass conf=0.95 
-attempts=2
-[INFO]   COMPLETED  | Draft PR summary for human review | verdict=pass conf=0.95
-attempts=2
+[INFO]   COMPLETED  | analyst.strategic  | Analyze Bug Report and Roo | 
+verdict=pass conf=0.96
+[INFO]   COMPLETED  | coder.python       | Implement the Fix in billi | 
+verdict=pass conf=0.95 [HITL]
+[INFO]   COMPLETED  | coder.python       | Write pytest Regression Te | 
+verdict=pass conf=0.95
+[INFO]   COMPLETED  | reviewer.code      | Static Coverage Review of  | 
+verdict=pass conf=0.92
+[INFO]   COMPLETED  | writer.docs        | Draft PR Summary           | 
+verdict=pass conf=0.96 [HITL]
+───────────────────────────────── DELIVERABLES ─────────────────────────────────
+[INFO]   ✓ /home/user/Supervisorai/deliverables/analysis.md
+[INFO]   ✓ /home/user/Supervisorai/deliverables/discount.py
+[INFO]   ✓ /home/user/Supervisorai/deliverables/test_discount.py
+[INFO]   ✓ /home/user/Supervisorai/deliverables/review.md
+[INFO]   ✓ /home/user/Supervisorai/deliverables/pr_summary.md
 ─────────────────────────── SELF-CORRECTION SHOWCASE ───────────────────────────
 [DISPATCH] worker → 'Implement the fix' [attempt 1] (returns an empty stub)
-[AUDIT] verdict=fail issues=['Empty output: no code change was provided to 
-apply_discount.', 'Task not attempted: percent > 100 and percent is None are not
-handled.', 'Validation conditions unsatisfied: no concrete code change 
-included.']
+[AUDIT] verdict=fail issues=['The output is empty - no code change was provided 
+at all.', 'None of the validation conditions are satisfied: there is no concrete
+code change to apply_discount, and the output does not handle percent > 100 or 
+percent is None.']
 [DRIFT DETECTED] Empty/insufficient output detected — plan not satisfied.
-[RECOVERY] Re-prompting worker with hint: Modify apply_discount to clamp percent
-to the 0-100 range (e.g., percent = max(0, min(100, percent or 0))) and treat a 
-missing/None percent as 0, so the returned price is never negative.
+[RECOVERY] Re-prompting worker with hint: Provide a concrete implementation of 
+apply_discount that clamps the percent argument to the range 0-100 (e.g., max(0,
+min(100, percent or 0))) and computes the discounted price in a way that 
+prevents negative results, such as: def apply_discount(price, percent): percent 
+= max(0, min(100, percent or 0)); return price * (1 - percent / 100)
 [DISPATCH] worker → 'Implement the fix' [attempt 2] (returns a real patch)
-[PASS] Correction verified (confidence 0.97).
+[PASS] Correction verified (confidence 0.99).
 [INFO] 
-Token usage: {'model': 'MiniMaxAI/MiniMax-M3', 'input_tokens': 20377, 
-'output_tokens': 11769, 'total_tokens': 32146, 'token_budget': None, 
+Token usage: {'model': 'MiniMaxAI/MiniMax-M3', 'input_tokens': 18224, 
+'output_tokens': 10955, 'total_tokens': 29179, 'token_budget': None, 
 'budget_remaining': None}

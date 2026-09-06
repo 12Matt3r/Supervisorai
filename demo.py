@@ -93,11 +93,31 @@ def build_orchestrator() -> Orchestrator:
     llm_client = LLMClient()  # reads GMI_API_KEY / GMI_BASE_URL / SUPERVISOR_MODEL
     orch = Orchestrator(supervisor=supervisor, llm_client=llm_client)
 
-    # Register the worker "team". Their capabilities inform M3's decomposition.
-    orch.register_agent("w-analyst", "CodeAnalyst", ["code_analysis"])
-    orch.register_agent("w-coder", "CodeEditor", ["code_edit"])
-    orch.register_agent("w-tester", "TestWriter", ["test_execution"])
+    # The specialist team comes from the agents/ roster (personas). The planner
+    # assigns one specialist per task and each worker runs with its persona.
     return orch, llm_client
+
+
+# Canon rules enforced on every task (continuity engine).
+CONTINUITY_RULES = [
+    "The fix must never make the returned price negative.",
+    "Never claim to have executed code or run tests; you have no runtime — "
+    "verification must be a static review of the written artifacts only.",
+]
+
+
+def operator_approval(trace):
+    """A simulated human operator for the HITL Deep-Sleep gate.
+
+    In production this is a real person answering hitl_approve/hitl_deny. Here we
+    surface the halt (as an operator would see it) and approve, so the demo shows
+    the full halt -> approve -> resume cycle in one run.
+    """
+    def _decide(task):
+        trace.recovery(f"[HITL] Operator reviewing high-stakes task '{task.name}' "
+                       f"(deliverable: {task.deliverable or 'n/a'}) ... APPROVED.")
+        return True
+    return _decide
 
 
 async def run() -> int:
@@ -107,6 +127,9 @@ async def run() -> int:
     mode = "MiniMax-M3 (live via GMI Cloud)" if llm_client.is_configured else "deterministic mock (no GMI_API_KEY set)"
     trace.info(f"Model backend: {mode}")
     trace.info(f"Endpoint: {llm_client.api_url}   Model: {llm_client.model}")
+    trace.info(f"Specialist roster ({len(orch.roster)}): {', '.join(orch.roster.names())}")
+
+    deliverables_dir = str(Path(__file__).resolve().parent / "deliverables")
 
     # Show the mock repo the supervisor is about to work on.
     trace.rule("MOCK REPO")
@@ -123,6 +146,9 @@ async def run() -> int:
             goal_description=goal_description,
             trace=trace,
             max_corrections=2,
+            continuity_rules=CONTINUITY_RULES,
+            deliverables_dir=deliverables_dir,
+            approval_callback=operator_approval(trace),
         )
     except Exception as e:
         trace.drift(f"Demo failed: {e}")
@@ -135,12 +161,23 @@ async def run() -> int:
     else:
         trace.drift(f"Project ended with status: {project.status}")
 
-    # Per-task audit ledger.
+    # Per-task audit ledger (with assigned specialist + HITL + deliverable).
     trace.rule("AUDIT LEDGER")
     for task in project.tasks.values():
         verdict = (task.audit or {}).get("verdict", "n/a")
         conf = (task.audit or {}).get("confidence", 0.0)
-        trace.info(f"  {task.status.value:10s} | {task.name:28s} | verdict={verdict} conf={conf:.2f} attempts={task.attempts}")
+        gate = " [HITL]" if task.high_stakes else ""
+        trace.info(f"  {task.status.value:10s} | {(task.assigned_agent or '?'):18s} | "
+                   f"{task.name[:26]:26s} | verdict={verdict} conf={conf:.2f}{gate}")
+
+    # Deliverables written to disk.
+    trace.rule("DELIVERABLES")
+    written = [t.deliverable_path for t in project.tasks.values() if t.deliverable_path]
+    if written:
+        for p in written:
+            trace.info(f"  ✓ {p}")
+    else:
+        trace.info("  (none written)")
 
     # Explicit self-correction showcase: run the real audit path on a
     # deliberately incomplete worker output so the DRIFT -> RECOVERY -> PASS

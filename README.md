@@ -60,6 +60,30 @@ LLM-using component (orchestrator decomposer, `LLMJudge`, `ResearchAssistor`)
 depends on it, so retargeting this one class flips the whole platform onto
 MiniMax-M3.
 
+## Studio capabilities (agent roster · continuity · deliverables · HITL)
+
+On top of the reasoning loop, SupervisorAI runs as an autonomous studio:
+
+- **Specialist agent roster** — named worker personas live in `agents/*.json`
+  (`coder.python`, `coder.javascript`, `writer.narrative`, `reviewer.code`, …).
+  M3 assigns the best specialist to each task during planning, and each worker
+  runs with its persona as its system prompt.
+- **Continuity engine** — pass `continuity_rules` (era, character, tone, safety
+  canon) to `run_goal`; they are injected into every worker prompt, folded into
+  each audit's checks, and guarded by a fast deterministic pre-check. Violations
+  trigger a self-healing correction.
+- **On-disk deliverables** — every *verified* worker output is written to
+  `deliverables/<file>` (with markdown-fence stripping, so `.html`/`.py`/`.json`
+  are valid standalone files). A run produces real artifacts, not just text.
+- **Human-in-the-Loop (Deep-Sleep) gate** — tasks the planner marks
+  `high_stakes` (finalizing/packaging a shippable artifact) **halt** before they
+  are written and require explicit human approval. Approve/deny via the
+  `hitl_status` / `hitl_approve` / `hitl_deny` MCP tools (or an approval callback
+  in code). **Never auto-approved** — the gate is the last line of defense.
+
+> These four capabilities were consolidated from a sibling prototype (VORTEX-OS)
+> onto this engine, so there is one verified system instead of two.
+
 ## GMI Cloud / MiniMax-M3 integration
 
 | | |

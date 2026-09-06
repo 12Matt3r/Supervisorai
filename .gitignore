@@ -33,3 +33,5 @@ supervisor.log
 .vscode/
 *.swp
 *.swo
+deliverables/
+supervisor_data/pending_approvals/

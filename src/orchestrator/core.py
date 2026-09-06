@@ -3,7 +3,9 @@ import threading
 import time
 import asyncio
 import json
+import re
 import dataclasses
+from pathlib import Path
 
 from .models import ManagedAgent, AgentStatus, ProjectGoal, OrchestrationTask, TaskStatus
 from .prompts import (
@@ -13,6 +15,8 @@ from .prompts import (
     get_synthesis_prompt,
 )
 from .trace import ExecutionTrace
+from .roster import AgentRoster
+from .hitl import HITLGate
 from supervisor_agent.core import SupervisorCore
 from llm.client import LLMClient
 
@@ -34,7 +38,8 @@ class Orchestrator:
     WORKER_MAX_TOKENS = 6000
     SYNTHESIS_MAX_TOKENS = 2048
 
-    def __init__(self, supervisor: SupervisorCore, llm_client: LLMClient):
+    def __init__(self, supervisor: SupervisorCore, llm_client: LLMClient,
+                 data_dir: str = "supervisor_data", agents_dir: Optional[str] = None):
         self.supervisor = supervisor
         self.llm_client = llm_client
         self.agent_pool: Dict[str, ManagedAgent] = {}
@@ -43,6 +48,14 @@ class Orchestrator:
         # (e.g. update_agent_status -> get_agent). A plain Lock deadlocks here.
         self._lock = threading.RLock()
         self.is_running = False
+
+        # Ported from VORTEX-OS: named specialist personas, a HITL approval gate.
+        self.roster = AgentRoster(agents_dir)
+        self.hitl = HITLGate(data_dir)
+        # Per-run configuration (set by run_goal).
+        self.continuity_rules: List[str] = []
+        self.deliverables_dir: str = "deliverables"
+        self.approval_callback = None
 
     # --- Agent Management ---
 
@@ -112,8 +125,12 @@ class Orchestrator:
             # Get available agents for the prompt
             agents_info = [dataclasses.asdict(a) for a in self.list_agents()]
 
-        # Generate the prompt for the LLM
-        prompt = get_decomposition_prompt(goal_description, agents_info)
+        # Generate the prompt for the LLM (feed the specialist roster + canon rules)
+        prompt = get_decomposition_prompt(
+            goal_description, agents_info,
+            roster_catalog=self.roster.as_prompt_catalog(),
+            continuity_rules=self.continuity_rules,
+        )
 
         # Query the LLM
         print("Querying MiniMax-M3 for task decomposition...")
@@ -140,6 +157,9 @@ class Orchestrator:
                 required_capabilities=task_data["required_capabilities"],
                 dependencies=set(task_data["dependencies"]),
                 validation_conditions=task_data.get("validation_conditions", []),
+                assigned_agent=task_data.get("assigned_agent"),
+                deliverable=task_data.get("deliverable", ""),
+                high_stakes=bool(task_data.get("high_stakes", False)),
             )
             created_tasks[task_id] = new_task
 
@@ -233,30 +253,51 @@ class Orchestrator:
         goal_description: str,
         trace: Optional[ExecutionTrace] = None,
         max_corrections: int = 1,
+        continuity_rules: Optional[List[str]] = None,
+        deliverables_dir: str = "deliverables",
+        approval_callback=None,
     ) -> Tuple[ProjectGoal, str]:
         """Drive a goal end-to-end under M3 supervision and return (project, final).
 
-        1. PLAN     - M3 decomposes the goal into a validated task DAG.
-        2. DELEGATE - each ready task is executed by an M3-backed worker.
-        3. AUDIT    - M3 verifies every worker output against the plan.
+        1. PLAN     - M3 decomposes the goal into a validated task DAG (with an
+                      assigned specialist agent + deliverable filename per task).
+        2. DELEGATE - each ready task is executed by its M3-backed specialist.
+        3. AUDIT    - M3 verifies every worker output against the plan + canon.
         4. CORRECT  - failed/drifted outputs are re-prompted with a fix hint.
-        5. SYNTHESIS- once all dependencies pass, M3 synthesizes a verified result.
+        5. HITL     - high-stakes tasks halt for human approval before finalizing.
+        6. SYNTHESIS- once all dependencies pass, M3 synthesizes a verified result.
+
+        ``continuity_rules`` are hard canon constraints injected into every worker
+        prompt and audit. Verified deliverables are written to ``deliverables_dir``.
+        ``approval_callback(task) -> bool`` supplies a human decision for
+        high-stakes tasks; if omitted, the run halts with status
+        ``PENDING_APPROVAL`` and the pending request is persisted for the HITL
+        tools to surface.
         """
         trace = trace or ExecutionTrace(enabled=True)
+        self.continuity_rules = continuity_rules or []
+        self.deliverables_dir = deliverables_dir
+        self.approval_callback = approval_callback
         trace.banner(
             "SupervisorAI  ·  MiniMax-M3 on GMI Cloud",
             f"Goal: {goal_description}",
         )
+        if self.roster:
+            trace.info(f"Specialist roster: {', '.join(self.roster.names())}")
+        if self.continuity_rules:
+            trace.info(f"Continuity rules in force: {len(self.continuity_rules)}")
 
         # --- 1. PLAN ---
         trace.rule("PLAN")
         trace.supervisor("Decomposing goal into a validated task DAG...")
         project = await self.submit_goal(goal_name, goal_description)
         project.status = "IN_PROGRESS"
-        order = " -> ".join(t.name for t in project.tasks.values())
+        order = " -> ".join(
+            f"{t.name}[{t.assigned_agent or '?'}]" for t in project.tasks.values()
+        )
         trace.supervisor(f"Plan holds {len(project.tasks)} tasks: {order}")
 
-        # --- 2-4. DELEGATE / AUDIT / CORRECT ---
+        # --- 2-5. DELEGATE / AUDIT / CORRECT / HITL ---
         trace.rule("EXECUTE")
         guard = 0
         while True:
@@ -265,7 +306,12 @@ class Orchestrator:
                 break
             # Execute sequentially so the trace reads as a coherent story.
             for task in ready:
-                await self._run_supervised_task(project, task, trace, max_corrections)
+                result = await self._run_supervised_task(project, task, trace, max_corrections)
+                if result == "pending_approval":
+                    project.status = "PENDING_APPROVAL"
+                    trace.info(f"Run halted: '{task.name}' awaits human approval "
+                               f"(approve task_id '{task.task_id}' then re-run).")
+                    return project, ""
                 if task.status == TaskStatus.FAILED:
                     trace.drift(f"Task '{task.name}' could not be recovered; halting plan.")
                     project.status = "FAILED"
@@ -295,56 +341,87 @@ class Orchestrator:
         task: OrchestrationTask,
         trace: ExecutionTrace,
         max_corrections: int,
-    ) -> None:
-        """Execute a single task with M3 workers and an M3 audit + correction loop."""
+    ) -> str:
+        """Execute one task: DELEGATE -> AUDIT -> CORRECT, then HITL + deliverable.
+
+        Returns "completed", "failed", or "pending_approval".
+        """
         task.status = TaskStatus.RUNNING
         upstream = {
             dep: project.tasks[dep].output_text
             for dep in task.dependencies
             if dep in project.tasks
         }
+        # Resolve the specialist persona for this task (roster).
+        spec = self.roster.resolve(task.assigned_agent, task.required_capabilities)
+        system = spec.persona if spec else None
+        agent_label = spec.name if spec else (task.assigned_agent or "worker")
+        # Continuity rules apply to every task's worker + audit.
+        rules = list(self.continuity_rules) + list(task.validation_conditions)
         correction_hint: Optional[str] = None
 
         for attempt in range(max_corrections + 1):
             task.attempts += 1
 
-            # --- DELEGATE ---
-            label = "worker" if attempt == 0 else "worker (correction)"
+            # --- DELEGATE (to the assigned specialist persona) ---
+            label = agent_label if attempt == 0 else f"{agent_label} (correction)"
             trace.dispatch(f"{label} → '{task.name}'  [attempt {attempt + 1}/{max_corrections + 1}]")
-            prompt = get_worker_prompt(project.description, task.name, task.description, upstream)
+            prompt = get_worker_prompt(project.description, task.name, task.description,
+                                       upstream, continuity_rules=self.continuity_rules,
+                                       deliverable=task.deliverable)
             if correction_hint:
                 prompt += (
                     f"\n\nA previous attempt FAILED the supervisor's audit. "
                     f"You MUST address this: {correction_hint}"
                 )
-            worker_env = await self.llm_client.complete(prompt, max_tokens=self.WORKER_MAX_TOKENS)
-            output = worker_env.get("text", "") or ""
+            worker_env = await self.llm_client.complete(
+                prompt, max_tokens=self.WORKER_MAX_TOKENS, system=system)
+            output = _extract_deliverable(worker_env.get("text", "") or "", task.deliverable)
             task.output_text = output
-            trace.dispatch(f"worker produced {len(output)} chars"
+            trace.dispatch(f"{agent_label} produced {len(output)} chars"
                            + (" (mock)" if worker_env.get("mock") else ""))
 
             # --- Supervisor engine pass (heuristic + LLM judge blend) ---
             await self._run_supervisor_engine(task, output, trace)
 
-            # --- AUDIT (M3 verification pass) ---
+            # --- Deterministic continuity pre-check (fast canon guard) ---
+            canon_hit = _continuity_violation(output, self.continuity_rules)
+
+            # --- AUDIT (M3 verification pass, canon folded into conditions) ---
             trace.audit(f"MiniMax-M3 verifying output of '{task.name}' against the plan...")
-            audit = await self._audit(project.description, task, output)
+            audit = await self._audit(project.description, task, output, extra_conditions=self.continuity_rules)
             task.audit = audit
             task.output_data = {"audit": audit, "supervisor": task.output_data.get("supervisor") if task.output_data else None}
 
             verdict = audit.get("verdict", "pass")
-            drift = bool(audit.get("drift_detected"))
-            if drift:
+            drift = bool(audit.get("drift_detected")) or bool(canon_hit)
+            if canon_hit:
+                trace.drift(f"'{task.name}': continuity violation — {canon_hit}")
+            elif drift:
                 trace.drift(f"'{task.name}': {audit.get('reasoning', 'output diverged from plan')}")
 
             if verdict == "pass" and not drift:
+                trace.passed(f"'{task.name}' verified (confidence {audit.get('confidence', 0):.2f}).")
+
+                # --- HITL gate: high-stakes tasks require human approval ---
+                if task.high_stakes and not self.hitl.is_approved(task.task_id):
+                    decision = await self._request_approval(task, trace)
+                    if decision == "pending":
+                        return "pending_approval"
+                    if decision == "denied":
+                        task.status = TaskStatus.FAILED
+                        task.completed_at = time.time()
+                        trace.recovery(f"'{task.name}' DENIED by operator; halting.")
+                        return "failed"
+
+                # --- Persist the verified deliverable to disk ---
+                self._write_deliverable(task, trace)
                 task.status = TaskStatus.COMPLETED
                 task.completed_at = time.time()
-                trace.passed(f"'{task.name}' verified (confidence {audit.get('confidence', 0):.2f}).")
-                return
+                return "completed"
 
             # --- CORRECT ---
-            issues = "; ".join(audit.get("issues", [])) or audit.get("reasoning", "unspecified failure")
+            issues = canon_hit or "; ".join(audit.get("issues", [])) or audit.get("reasoning", "unspecified failure")
             correction_hint = audit.get("correction_hint") or issues
             if attempt < max_corrections:
                 trace.recovery(f"Audit FAILED for '{task.name}': {issues}. Re-prompting worker with fix hint.")
@@ -354,6 +431,60 @@ class Orchestrator:
         # Exhausted corrections without passing.
         task.status = TaskStatus.FAILED
         task.completed_at = time.time()
+        return "failed"
+
+    async def _request_approval(self, task: OrchestrationTask, trace: ExecutionTrace) -> str:
+        """Deep-Sleep HITL: surface a high-stakes task and get a human decision.
+
+        Returns "approved", "denied", or "pending" (halt for out-of-band approval).
+        """
+        deliverable = task.deliverable or f"{task.task_id} output"
+        self.hitl.request(
+            task.task_id,
+            proposed_action=f"Finalize and write deliverable '{deliverable}'",
+            severity="HIGH",
+            context=task.description,
+        )
+        trace.recovery(f"[HITL] High-stakes task '{task.name}' halted — awaiting approval "
+                       f"(task_id: {task.task_id}).")
+        if self.approval_callback is None:
+            # No operator hooked up: persist the request and yield.
+            return "pending"
+        # Ask the operator (may be sync or async).
+        result = self.approval_callback(task)
+        if hasattr(result, "__await__"):
+            result = await result
+        if result:
+            self.hitl.approve(task.task_id)
+            trace.passed(f"[HITL] Operator APPROVED '{task.name}'.")
+            return "approved"
+        self.hitl.deny(task.task_id)
+        return "denied"
+
+    def _write_deliverable(self, task: OrchestrationTask, trace: ExecutionTrace) -> None:
+        """Write a verified worker output to the deliverables directory."""
+        if not task.output_text.strip():
+            return
+        name = _safe_filename(task.deliverable) or f"{task.task_id}.md"
+        out_dir = Path(self.deliverables_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / name
+        try:
+            path.write_text(task.output_text)
+            task.deliverable_path = str(path)
+            trace.info(f"  ↳ deliverable written: {path} ({len(task.output_text)} chars)")
+        except OSError as e:
+            trace.info(f"  ↳ could not write deliverable {path}: {e}")
+
+    # --- HITL operator surface (used by MCP tools / demo) ---
+    def pending_approvals(self) -> List[Dict[str, Any]]:
+        return self.hitl.pending()
+
+    def approve_task(self, task_id: str) -> bool:
+        return self.hitl.approve(task_id)
+
+    def deny_task(self, task_id: str) -> bool:
+        return self.hitl.deny(task_id)
 
     async def _run_supervisor_engine(self, task: OrchestrationTask, output: str, trace: ExecutionTrace) -> None:
         """Run the SupervisorCore monitor + validate blend, defensively.
@@ -382,9 +513,12 @@ class Orchestrator:
             # Non-fatal: the M3 audit is the authoritative verification.
             trace.info(f"(supervisor engine pass skipped: {e})")
 
-    async def _audit(self, goal: str, task: OrchestrationTask, output: str) -> Dict[str, Any]:
+    async def _audit(self, goal: str, task: OrchestrationTask, output: str,
+                     extra_conditions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Ask MiniMax-M3, as supervisor, to verify an output. Always returns a verdict dict."""
-        conditions = task.validation_conditions or [f"The output must accomplish: {task.description}"]
+        conditions = list(task.validation_conditions) + list(extra_conditions or [])
+        if not conditions:
+            conditions = [f"The output must accomplish: {task.description}"]
         prompt = get_audit_prompt(goal, task.name, task.description, output, conditions)
         env = await self.llm_client.complete(prompt, max_tokens=512, temperature=0.2)
         parsed = env.get("json")
@@ -513,3 +647,94 @@ class Orchestrator:
         """Stops the orchestrator's main loop."""
         self.is_running = False
         print("Orchestrator stopping...")
+
+
+# ---------------------------------------------------------------------------- #
+# Module-level helpers (ported/adapted from the VORTEX-OS executor)
+# ---------------------------------------------------------------------------- #
+def _strip_code_fence(text: str) -> str:
+    """Remove a surrounding markdown code fence so code/HTML/JSON deliverables
+    are valid as standalone files."""
+    if not text:
+        return text
+    lines = text.splitlines()
+    if lines and lines[0].lstrip().startswith("```"):
+        lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        return "\n".join(lines)
+    return text
+
+
+_CODE_EXTS = {".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".htm", ".css",
+              ".sh", ".rs", ".go", ".java", ".rb", ".sql", ".yaml", ".yml"}
+
+
+def _extract_deliverable(text: str, deliverable: str) -> str:
+    """Coerce a worker's output into the raw contents of a code/data file.
+
+    Handles the two common ways a model wraps code: (1) prose around a fenced
+    ```lang code block, and (2) a JSON envelope carrying the file body in a
+    "*content"/"*code" field. Prose deliverables (.md/.txt) are returned as-is
+    apart from a whole-output fence strip.
+    """
+    text = _strip_code_fence(text)
+    if not deliverable or "." not in deliverable:
+        return text
+    ext = "." + deliverable.rsplit(".", 1)[-1].lower()
+
+    # For code files: if the body is wrapped in prose + a fenced block, take the
+    # largest fenced block.
+    if ext in _CODE_EXTS:
+        blocks = re.findall(r"```[A-Za-z0-9_+-]*\n(.*?)```", text, re.DOTALL)
+        if blocks:
+            return max(blocks, key=len).strip()
+        # Or a JSON envelope: {"...content": "<file body>"}.
+        if not text.lstrip().startswith(("<", "def ", "import ", "function", "const", "class ")):
+            try:
+                obj = json.loads(text)
+            except (json.JSONDecodeError, ValueError):
+                obj = None
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    kl = k.lower()
+                    if isinstance(v, str) and ("content" in kl or "code" in kl or "body" in kl):
+                        return v
+    return text
+
+
+def _safe_filename(name: str) -> str:
+    """Reduce a suggested deliverable path to a safe basename."""
+    if not name:
+        return ""
+    base = name.split()[0].strip().strip("`'\"")
+    base = base.replace("\\", "/").split("/")[-1]
+    base = re.sub(r"[^A-Za-z0-9._-]", "_", base)
+    return base[:80]
+
+
+# A small, extensible canon guard. Rules that name a forbidden token (e.g.
+# "no smartphones", "no electricity") are enforced literally; the M3 audit
+# handles the nuanced cases.
+_FORBIDDEN_HINTS = {
+    "smartphone": r"\bsmart\s?phones?\b",
+    "internet": r"\binternet\b|\bwi-?fi\b",
+    "cellphone": r"\bcell\s?phones?\b",
+    "modern tech": r"\b5G\b",
+}
+
+
+def _continuity_violation(output: str, rules: Optional[List[str]]) -> str:
+    """Fast deterministic canon check: if a rule forbids a token and the output
+    contains it, return a short violation description; else ''."""
+    if not output or not rules:
+        return ""
+    low = output.lower()
+    for rule in rules:
+        rl = rule.lower()
+        if not any(neg in rl for neg in ("no ", "never", "forbid", "without", "not ")):
+            continue
+        for token, pattern in _FORBIDDEN_HINTS.items():
+            if token in rl and re.search(pattern, low):
+                return f"forbidden element '{token}' present despite rule: {rule}"
+    return ""
