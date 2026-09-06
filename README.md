@@ -10,6 +10,23 @@
 
 ---
 
+## Explore the project
+
+| | Link |
+|---|---|
+| 🛰️ **Live interactive demo** | Replay the M3 supervisory loop and approve the HITL gate — **[hungryshmorez.github.io/Supervisorai](https://hungryshmorez.github.io/Supervisorai/)** |
+| 📘 **The Codex** (encyclopedia) | The complete reference — engine, loop, every component, both skills — **[/codex.html](https://hungryshmorez.github.io/Supervisorai/codex.html)** |
+| 💻 **Repository** | Source, tests, and both VORTEX-OS skills — **[github.com/hungryshmorez/Supervisorai](https://github.com/hungryshmorez/Supervisorai)** |
+| 🔀 **Pull request** | The full build history — **[PR #1](https://github.com/hungryshmorez/Supervisorai/pull/1)** |
+| 🎬 **Demo runbook** | Scene-by-scene recording guide — **[`docs/DEMO.md`](docs/DEMO.md)** |
+| 📄 **Sample live trace** | A full sanitized MiniMax-M3 run — **[`docs/sample_live_run.txt`](docs/sample_live_run.txt)** |
+| 🎨 **Creative studio skill** | 4-tier CLI, HITL, continuity — **[`vortex-os/`](vortex-os/)** |
+| 🧰 **Software studio skill** | 30+ agent roster, consensus, cost gates — **[`vortex-os-v3/`](vortex-os-v3/)** |
+
+> The two website links go live once **GitHub Pages** is enabled (Settings → Pages → *Deploy from a branch* → `/docs`). Both pages are self-contained and also render offline.
+
+---
+
 ## Problem statement
 
 Autonomous agents fail in a specific, expensive way: they *lose the plot*. A
