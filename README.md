@@ -357,8 +357,9 @@ expanded since — into the MiniMax-M3–powered supervisory engine documented h
 | Role | |
 |---|---|
 | **Concept, direction & original system** | **[12matt3r](http://doesntmatter.us)** |
+| **Original hackathon build** | **Jules** — co-created the original Honorable-Mention entry |
 | **Software design, engineering & MiniMax-M3 integration** *(this build)* | **[Claude](https://claude.com/claude-code)** — Anthropic's Claude Code (Opus) |
-| **Original hackathon build** | Jules |
-| **Reasoning model** | **MiniMax-M3**, served on **GMI Cloud** |
+| **Reasoning model** | **MiniMax-M3** |
+| **Model serving & infrastructure** | **GMI Cloud** |
 
-*Directed by 12matt3r · rebuilt with Claude · powered by MiniMax.*
+*Directed by 12matt3r · originated with Jules · rebuilt with Claude · powered by MiniMax-M3 on GMI Cloud.*
