@@ -26,10 +26,18 @@ jobs:
           pip install -r requirements.txt pytest pytest-asyncio
 
       - name: Test suite
+        # Unit tests are hermetic: they must never depend on a live LLM or a
+        # network round-trip. Force offline-mock mode by blanking the key for
+        # this step only, so the suite is deterministic whether or not the repo
+        # has a GMI_API_KEY secret. Live coverage lives in the preflight step.
+        env:
+          GMI_API_KEY: ""
         run: PYTHONPATH=src pytest tests/ -q
 
       - name: Preflight — validate config (no key required)
         # Runs in offline-mock mode; asserts env + JSON configs are well-formed.
+        env:
+          GMI_API_KEY: ""
         run: python scripts/preflight.py
 
       - name: Preflight — require LIVE MiniMax-M3

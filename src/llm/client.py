@@ -67,6 +67,12 @@ class LLMClient:
         # Accept the legacy `api_key`/`model` positional args used across the
         # codebase, but source everything else from the environment.
         self.api_key = api_key or os.environ.get("GMI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        # Defend against the classic paste-into-a-secret-box bug: a trailing
+        # newline or stray whitespace in the key makes an *illegal* HTTP header
+        # value (httpx raises "Illegal header value"). Keys never have edge
+        # whitespace, so stripping is always safe and prevents a broken deploy.
+        if self.api_key:
+            self.api_key = self.api_key.strip()
         # A model of "claude-3-*" is a legacy default passed by old call sites
         # (e.g. LLMJudge). Ignore it and use the configured supervisor model.
         if model and not model.lower().startswith("claude"):
