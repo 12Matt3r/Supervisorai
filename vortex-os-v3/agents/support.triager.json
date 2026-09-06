@@ -1,0 +1,109 @@
+{
+  "name": "support.triager",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Classifies support tickets by category, severity, customer segment. Routes to the right team, augments with relevant KB articles & known issue links.",
+  "entry": "http://mcp.local:7474/tools/support_triage",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "ticket"
+    ],
+    "properties": {
+      "ticket": {
+        "type": "object"
+      },
+      "kb_corpus_path": {
+        "type": "string"
+      },
+      "routing_rules": {
+        "type": "string"
+      },
+      "auto_respond": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "category",
+      "severity",
+      "route_to",
+      "kb_hits"
+    ],
+    "properties": {
+      "category": {
+        "type": "string"
+      },
+      "severity": {
+        "enum": [
+          "sev1",
+          "sev2",
+          "sev3",
+          "sev4"
+        ]
+      },
+      "route_to": {
+        "type": "string"
+      },
+      "kb_hits": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "draft_reply": {
+        "type": "string"
+      },
+      "sla_due_at": {
+        "type": "string",
+        "format": "date-time"
+      }
+    }
+  },
+  "writes": [
+    "support/triage/{{ticket.id}}.json"
+  ],
+  "reads": [
+    "kb/**"
+  ],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.8,
+    "max_latency_s": 120,
+    "max_cost_usd": 0.05,
+    "must_have": [
+      "category",
+      "severity",
+      "route_to"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

@@ -1,0 +1,101 @@
+{
+  "name": "security.sast",
+  "version": "2.0.0",
+  "kind": "shell",
+  "description": "Performs Static Application Security Testing: runs semgrep, codeql, bandit or snyk code against source. Triages findings, emits SARIF.",
+  "entry": "scripts/run_sast.sh",
+  "writes": [
+    "sast.sarif",
+    "reports/sast.md"
+  ],
+  "reads": [
+    "src/**",
+    "**/*.{py,js,ts,go,java,rb,cs}"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "ruleset": {
+        "enum": [
+          "owasp-top10",
+          "cwe-top25",
+          "all"
+        ],
+        "default": "owasp-top10"
+      },
+      "severity_min": {
+        "enum": [
+          "info",
+          "low",
+          "med",
+          "high",
+          "crit"
+        ],
+        "default": "med"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "sarif",
+      "summary"
+    ],
+    "properties": {
+      "sarif": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "critical": {
+        "type": "integer"
+      },
+      "high": {
+        "type": "integer"
+      },
+      "auto_fix_pr_url": {
+        "type": "string"
+      }
+    }
+  },
+  "resources": {
+    "cpu": "high",
+    "mem": "4Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.85,
+    "max_latency_s": 600,
+    "max_cost_usd": 0,
+    "must_have": [
+      "sarif",
+      "summary"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "security.threatmodel"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

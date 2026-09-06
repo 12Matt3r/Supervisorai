@@ -1,0 +1,11 @@
+{
+  "name": "media.native",
+  "version": "1.0.0",
+  "kind": "worker",
+  "inherits_from": ["persona.core_logic"],
+  "description": "Tier 3 Media Synthesizer. Directly interfaces with native internal MiniMax engines for audio synthesis, ffmpeg processing, and visual rendering. Never uses external websites.",
+  "capabilities": ["audio_generation", "ffmpeg_processing", "video_rendering"],
+  "invariants_compliant": ["I1", "I6"],
+  "reads": ["swarms/active_*/plan.json"],
+  "writes": ["swarms/active_*/deliverables/"]
+}

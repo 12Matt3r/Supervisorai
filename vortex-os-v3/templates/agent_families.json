@@ -1,0 +1,106 @@
+{
+  "$comment": "Family metadata the dynamic agent factory uses to synthesise sub-agents on the fly. Source of truth for default shapes (kind, persona, capabilities, resource budget).",
+  "version": "1.0",
+  "families": {
+    "coder": {
+      "default_kind":         "subplan",
+      "default_persona":      "staff_engineer",
+      "default_resources":    { "cpu": "high", "mem": "4Gi", "net": "offline" },
+      "default_template":     "templates/coder.json",
+      "default_quality_gates": ["diff", "summary", "tests_added"],
+      "capability_keywords":  ["code", "implement", "refactor", "port", "fix bug", "patch", "module", "function", "class"]
+    },
+    "data": {
+      "default_kind":         "subplan",
+      "default_persona":      "data_engineer",
+      "default_resources":    { "cpu": "med", "mem": "4Gi", "net": "online" },
+      "default_template":     "templates/data.json",
+      "default_quality_gates": ["row_count", "schema_valid"],
+      "capability_keywords":  ["dataset", "csv", "data", "etl", "transform", "profile", "lineage", "synthesize"]
+    },
+    "ops": {
+      "default_kind":         "shell",
+      "default_persona":      "sre",
+      "default_resources":    { "cpu": "med", "mem": "2Gi", "net": "online" },
+      "default_template":     "templates/ops.json",
+      "default_quality_gates": ["exit_code", "rollback_safe"],
+      "capability_keywords":  ["deploy", "rollback", "incident", "kubernetes", "terraform", "monitor"]
+    },
+    "pm": {
+      "default_kind":         "http",
+      "default_persona":      "product_manager",
+      "default_resources":    { "cpu": "low", "mem": "1Gi", "net": "online" },
+      "default_template":     "templates/pm.json",
+      "default_quality_gates": ["summary", "priority_label"],
+      "capability_keywords":  ["prioritize", "sprint", "ticket", "backlog", "roadmap"]
+    },
+    "qa": {
+      "default_kind":         "subplan",
+      "default_persona":      "qa_auditor",
+      "default_resources":    { "cpu": "low", "mem": "1Gi", "net": "offline" },
+      "default_template":     "templates/qa.json",
+      "default_quality_gates": ["pass_count", "fail_count"],
+      "capability_keywords":  ["test", "validate", "verify", "audit", "qa"]
+    },
+    "researcher": {
+      "default_kind":         "http",
+      "default_persona":      "librarian",
+      "default_resources":    { "cpu": "med", "mem": "2Gi", "net": "online" },
+      "default_template":     "templates/researcher.json",
+      "default_quality_gates": ["citations", "summary"],
+      "capability_keywords":  ["research", "search", "literature", "cite", "investigate"]
+    },
+    "reviewer": {
+      "default_kind":         "subplan",
+      "default_persona":      "reviewer",
+      "default_resources":    { "cpu": "low", "mem": "1Gi", "net": "offline" },
+      "default_template":     "templates/reviewer.json",
+      "default_quality_gates": ["comments", "verdict"],
+      "capability_keywords":  ["review", "approve", "merge", "comment"]
+    },
+    "security": {
+      "default_kind":         "subplan",
+      "default_persona":      "security_auditor",
+      "default_resources":    { "cpu": "med", "mem": "2Gi", "net": "online" },
+      "default_template":     "templates/security.json",
+      "default_quality_gates": ["cve_id", "severity"],
+      "capability_keywords":  ["cve", "vulnerability", "exploit", "threat", "risk", "compliance"]
+    },
+    "support": {
+      "default_kind":         "http",
+      "default_persona":      "support_agent",
+      "default_resources":    { "cpu": "low", "mem": "1Gi", "net": "online" },
+      "default_template":     "templates/support.json",
+      "default_quality_gates": ["reply", "sentiment"],
+      "capability_keywords":  ["ticket", "customer", "support", "triage", "reply"]
+    },
+    "tester": {
+      "default_kind":         "subplan",
+      "default_persona":      "qa_auditor",
+      "default_resources":    { "cpu": "med", "mem": "2Gi", "net": "offline" },
+      "default_template":     "templates/tester.json",
+      "default_quality_gates": ["pass_rate", "coverage_pct"],
+      "capability_keywords":  ["integration", "e2e", "smoke", "regression", "load"]
+    },
+    "writer": {
+      "default_kind":         "http",
+      "default_persona":      "writer",
+      "default_resources":    { "cpu": "low", "mem": "1Gi", "net": "online" },
+      "default_template":     "templates/writer.json",
+      "default_quality_gates": ["summary", "word_count"],
+      "capability_keywords":  ["document", "write", "explain", "summary", "doc", "comment", "commit message"]
+    }
+  },
+  "personas": {
+    "staff_engineer":    { "tone": "precise, terse",  "guard": ["no secrets", "tests required", "no TODOs"] },
+    "data_engineer":     { "tone": "analytical",      "guard": ["PII scrub", "schema-first"] },
+    "sre":                { "tone": "calm, procedural","guard": ["blast radius", "rollback plan"] },
+    "product_manager":    { "tone": "pragmatic",       "guard": ["scope realism"] },
+    "qa_auditor":         { "tone": "rigorous",        "guard": ["reproducibility"] },
+    "librarian":          { "tone": "scholarly",       "guard": ["always cite"] },
+    "reviewer":           { "tone": "constructive",    "guard": ["on-topic, non-personal"] },
+    "security_auditor":   { "tone": "sober",           "guard": ["evidence before claims"] },
+    "support_agent":      { "tone": "empathetic",      "guard": ["no PII exposure"] },
+    "writer":             { "tone": "clear, concise",  "guard": ["no hallucinated links"] }
+  }
+}

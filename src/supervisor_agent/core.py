@@ -55,8 +55,14 @@ class SupervisorCore:
         self.escalation_config = EscalationConfig()
         self.knowledge_base: Dict[str, KnowledgeBaseEntry] = {}
         
-        # Load persisted data
-        asyncio.create_task(self._load_knowledge_base())
+        # Load persisted data. Only schedule the async load when a running event
+        # loop is available (i.e. the supervisor is constructed inside async
+        # code); otherwise defer so synchronous construction does not crash.
+        try:
+            asyncio.get_running_loop().create_task(self._load_knowledge_base())
+        except RuntimeError:
+            # No running loop (synchronous construction / unit tests). Load lazily.
+            pass
 
     def _load_weights(self) -> Dict[str, float]:
         """Loads weights from the specified JSON file."""
@@ -156,9 +162,13 @@ class SupervisorCore:
             goals=task.instructions
         )
 
-        # Combine the scores (e.g., 60% heuristic, 40% LLM)
-        blended_quality_score = (quality_metrics.confidence_score * 0.6) + (llm_evaluation.get("overall_score", 0) * 0.4)
-        quality_metrics.confidence_score = blended_quality_score # Update the main quality score
+        # Combine the scores (60% heuristic, 40% LLM judge) only when a real
+        # judge opinion is available. When unconfigured/mocked, the judge returns
+        # a placeholder score with llm_available=False; blending that in would
+        # mask genuinely poor outputs, so we rely on the heuristic alone.
+        if llm_evaluation.get("llm_available", True):
+            blended_quality_score = (quality_metrics.confidence_score * 0.6) + (llm_evaluation.get("overall_score", 0) * 0.4)
+            quality_metrics.confidence_score = blended_quality_score # Update the main quality score
 
         task.quality_metrics = quality_metrics
 
@@ -255,7 +265,7 @@ class SupervisorCore:
         level_map = {
             Action.ALLOW: None,
             Action.WARN: InterventionLevel.WARNING,
-            Action.CORRECTION: InterventionLevel.CORRECTION,
+            Action.CORRECT: InterventionLevel.CORRECTION,
             Action.ESCALATE: InterventionLevel.ESCALATION,
         }
         level = level_map[best_action]

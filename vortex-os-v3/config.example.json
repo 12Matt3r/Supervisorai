@@ -1,0 +1,164 @@
+{
+  "$schema": "./schemas/config.schema.json",
+  "project": {
+    "name": "Generic Sub-Agent Orchestration",
+    "version": "2.0.0",
+    "author": "",
+    "description": "Generic orchestrator for delegating work to a pool of specialized sub-agents."
+  },
+  "paths": {
+    "plan_file":    "./orchestrator_skill/plan.json",
+    "state_file":   "./orchestrator_skill/state.json",
+    "memory_dir":   "./orchestrator_skill/memory",
+    "output_dir":   "./deliverables",
+    "audit_file":   "./orchestrator_skill/audit.jsonl"
+  },
+  "agents": {
+    "research": {
+      "primary": "deep_research_tasks",
+      "supports_parallel": true,
+      "max_parallel": 10,
+      "max_input_tokens": 8000,
+      "best_for": ["background research", "competitive analysis", "data synthesis"]
+    },
+    "documentation": {
+      "primary": "report_writer_agent",
+      "supports_parallel": false,
+      "max_input_tokens": 16000,
+      "best_for": ["synthesis reports", "formal documents", "business plans"]
+    },
+    "design_web": {
+      "primary": "web_designer",
+      "supports_parallel": false,
+      "max_input_tokens": 12000,
+      "best_for": ["website design specs", "design tokens", "content structure plans"]
+    },
+    "design_ppt": {
+      "primary": "ppt_designer",
+      "supports_parallel": false,
+      "max_input_tokens": 12000,
+      "best_for": ["presentation design specs", "slide templates"]
+    },
+    "build_static_site": {
+      "primary": "html_page_dev_agent",
+      "supports_parallel": true,
+      "max_parallel": 5,
+      "max_input_tokens": 12000,
+      "best_for": ["static websites", "landing pages", "documentation sites"]
+    },
+    "build_interactive_app": {
+      "primary": "interactive_website_dev_agent",
+      "supports_parallel": true,
+      "max_parallel": 3,
+      "max_input_tokens": 16000,
+      "best_for": ["React SPAs", "apps calling public APIs", "dashboards"]
+    },
+    "build_fullstack_app": {
+      "primary": "fullstack_website_dev_agent",
+      "supports_parallel": false,
+      "max_input_tokens": 20000,
+      "best_for": ["apps with auth", "user data persistence", "API key management"]
+    },
+    "build_ppt": {
+      "primary": "html_ppt_agent",
+      "supports_parallel": true,
+      "max_parallel": 3,
+      "max_input_tokens": 16000,
+      "best_for": ["slide decks", "pitch presentations", "training materials"]
+    },
+    "batch_technical": {
+      "primary": "batch_tasks_agent",
+      "supports_parallel": true,
+      "max_parallel": 10,
+      "max_input_tokens": 8000,
+      "best_for": ["5+ independent file operations", "parallel code review", "bulk edits"]
+    },
+    "build_mcp": {
+      "primary": "build_mcp_agent",
+      "supports_parallel": false,
+      "max_input_tokens": 16000,
+      "best_for": ["persistent MCP servers", "API wrappers"]
+    }
+  },
+  "agent_aliases": {
+    "research": "deep_research_tasks",
+    "documentation": "report_writer_agent",
+    "design_web": "web_designer",
+    "design_ppt": "ppt_designer",
+    "build_static_site": "html_page_dev_agent",
+    "build_interactive_app": "interactive_website_dev_agent",
+    "build_fullstack_app": "fullstack_website_dev_agent",
+    "build_ppt": "html_ppt_agent",
+    "batch_technical": "batch_tasks_agent",
+    "build_mcp": "build_mcp_agent"
+  },
+  "passes": {
+    "pass_1_task_analysis_decomposition": {
+      "enabled": true,
+      "max_subtasks": 50,
+      "require_dependencies": true,
+      "validate_against_agents": true
+    },
+    "pass_2_agent_selection_dispatch": {
+      "enabled": true,
+      "max_concurrent": 10,
+      "retry_on_failure": true,
+      "max_retries": 2,
+      "default_handoff": "bidirectional",
+      "fallback_agent": "report_writer_agent"
+    },
+    "pass_3_result_aggregation_validation": {
+      "enabled": true,
+      "require_all_tasks_complete": true,
+      "validate_output_paths_exist": true,
+      "validate_cmd_default": null
+    },
+    "pass_4_logging_sealing": {
+      "enabled": true,
+      "sealed_marker": "[STATUS: ORCHESTRATION COMPLETE.]",
+      "log_format": "json"
+    },
+    "pass_5_notification": {
+      "enabled": false,
+      "message_format": "Plan {plan_id} {event}: {goal}"
+    }
+  },
+  "context_recovery": {
+    "enabled": true,
+    "max_context_tokens": 200000,
+    "save_state_after_each_pass": true,
+    "memory_namespace": "orchestrator_skill",
+    "checkpoint_interval_minutes": 15
+  },
+  "delegation": {
+    "enabled": true,
+    "prefer_parallel": true,
+    "min_parallel_size": 3,
+    "communication": "message_to_agent"
+  },
+  "quality": {
+    "default_validate_min_score": 0.7,
+    "default_judge_model": "gpt-4o"
+  },
+  "notifications": {
+    "channels": [],
+    "message_format": "Plan {plan_id} {event}: {goal}"
+  },
+  "dynamic_routing": {
+    "enabled": false,
+    "model": "gpt-4o-mini",
+    "provider": "openai",
+    "temperature": 0.2
+  },
+  "dynamic_agents": {
+    "enabled":            true,
+    "static_only":        false,
+    "default_quarantine": 3,
+    "max_dynamic":        0,
+    "synthesis_model":    "",
+    "synthesis_provider": "",
+    "audit_log":          "./orchestrator_skill/factory_audit.jsonl",
+    "dynamic_dir":        "./orchestrator_skill/agents_dynamic",
+    "require_approval":   false
+  }
+}

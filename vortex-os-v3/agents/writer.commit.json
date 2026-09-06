@@ -1,0 +1,111 @@
+{
+  "name": "writer.commit",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Writes Conventional Commit messages from staged diffs. Honors repo's commitlint config and emits subject + body + footer (BREAKING/Refs).",
+  "entry": "http://mcp.local:7474/tools/commit_message",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "diff"
+    ],
+    "properties": {
+      "diff": {
+        "type": "string"
+      },
+      "max_subject_len": {
+        "type": "integer",
+        "default": 72
+      },
+      "include_body": {
+        "type": "boolean",
+        "default": true
+      },
+      "ticket_prefix": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "subject",
+      "body",
+      "footer"
+    ],
+    "properties": {
+      "subject": {
+        "type": "string"
+      },
+      "body": {
+        "type": "string"
+      },
+      "footer": {
+        "type": "string"
+      },
+      "type": {
+        "enum": [
+          "feat",
+          "fix",
+          "refactor",
+          "docs",
+          "test",
+          "chore",
+          "perf",
+          "build",
+          "ci"
+        ]
+      },
+      "scope": {
+        "type": "string"
+      }
+    }
+  },
+  "writes": [
+    ".git/COMMIT_EDITMSG.tmp"
+  ],
+  "reads": [],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 60,
+    "max_cost_usd": 0.01,
+    "must_have": [
+      "subject",
+      "type"
+    ],
+    "must_not": [
+      "WIP",
+      "TODO",
+      "fix bug"
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "writer.slack_digest"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

@@ -1,0 +1,48 @@
+{
+  "$comment": "Generic agent contract scaffold used by lib/dynamic_agents.sh when the supervisor needs to spawn a sub-agent on the fly. Fields with __TOKENS__ are substituted at factory-time.",
+  "name":         "__AGENT_NAME__",
+  "version":      "2.0.0",
+  "kind":         "subplan",
+  "family":       "__FAMILY__",
+  "description":  "__DESCRIPTION__",
+  "entry":        "templates/coder.json",
+  "input_schema": {
+    "type": "object",
+    "required": ["task_description", "target_files"],
+    "properties": {
+      "task_description": { "type": "string", "minLength": 10 },
+      "target_files":     { "type": "array", "items": { "type": "string" } },
+      "context":          { "type": "object" }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["diff", "summary", "tests_added"],
+    "properties": {
+      "diff":        { "type": "string" },
+      "summary":     { "type": "string" },
+      "tests_added": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "writes": ["{{target_files}}", "patch.diff", "tests/**"],
+  "reads":  ["{{target_files}}"],
+  "resources": { "cpu": "med", "mem": "2Gi", "net": "offline" },
+  "retry_policy": { "max_attempts": 2, "backoff": "exponential", "on": ["timeout", "transient_io"] },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 1200,
+    "max_cost_usd": 1.0,
+    "must_have": ["diff", "summary", "tests_added"],
+    "must_not":  ["TODO:", "FIXME:", "XXX"]
+  },
+  "dynamic": {
+    "is_dynamic":         true,
+    "spawned_at":         "__TIMESTAMP__",
+    "spawned_by":         "__SPAWNER__",
+    "spawn_reason":       "__REASON__",
+    "quarantine_runs":    3,
+    "quarantine_remaining": 3,
+    "parent_family":      "__PARENT_FAMILY__",
+    "creation_mode":      "__MODE__"
+  }
+}

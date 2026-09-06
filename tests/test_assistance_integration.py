@@ -2,8 +2,10 @@ import unittest
 import asyncio
 import sys
 import os
+import json
 import tempfile
 import shutil
+from unittest.mock import AsyncMock, patch
 
 # Add the 'src' directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -31,18 +33,34 @@ class TestAssistanceIntegration(unittest.TestCase):
     def test_stuck_agent_assistance_flow(self):
         """
         Test that a stuck agent correctly receives a proactive ASSISTANCE intervention.
+
+        A genuinely low-quality output (which the heuristic QualityAnalyzer scores
+        below the intervention threshold) is submitted repeatedly. The first two
+        outputs trigger CORRECTION-level interventions; the third crosses the
+        "stuck" threshold and triggers proactive research ASSISTANCE. The external
+        research tools (web search / page fetch) and the research LLM are mocked at
+        their boundary so the assistance suggestion is deterministic.
         """
-        # Since the methods are async, we need to run this test in an event loop
+        # A short, incoherent non-answer scores below the 0.4 intervention floor.
+        low_quality_output = "idk"
+
+        # Mock the external research boundary used by ResearchAssistor.
+        mock_search = AsyncMock(return_value=json.dumps(
+            [{"title": "Answer", "link": "http://stackoverflow.com/q/123"}]))
+        mock_view = AsyncMock(return_value="The fix is to validate inputs before use.")
+        # The research assistor synthesizes its suggestion via its own LLM client.
+        self.supervisor.research_assistor.llm_client.query = AsyncMock(
+            return_value={"text_response": "Based on research, validate inputs before use."})
+
         async def run_test():
             task_id = await self.supervisor.monitor_agent(
                 agent_name="stuck_agent",
                 framework="test",
                 task_input="a task that will cause repeated failures",
-                instructions=["fail repeatedly"]
+                instructions=["produce a complete, correct answer"]
             )
 
             task = self.supervisor.active_tasks[task_id]
-            low_quality_output = "this output is too short and will fail quality checks"
 
             # Fail 1
             result1 = await self.supervisor.validate_output(task_id, low_quality_output)
@@ -63,8 +81,9 @@ class TestAssistanceIntegration(unittest.TestCase):
             self.assertEqual(final_intervention['level'], InterventionLevel.ASSISTANCE.value)
             self.assertIn("Based on research", final_intervention['reason'])
 
-        # Run the async test
-        asyncio.run(run_test())
+        with patch('researcher.assistor.google_search', mock_search), \
+             patch('researcher.assistor.view_text_website', mock_view):
+            asyncio.run(run_test())
 
 if __name__ == '__main__':
     unittest.main()

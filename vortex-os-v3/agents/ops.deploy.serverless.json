@@ -1,0 +1,117 @@
+{
+  "name": "ops.deploy.serverless",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Deploys AWS Lambda / GCP Cloud Functions / Azure Functions. Packages code, manages aliases, traffic-shifts versions, monitors cold-start.",
+  "entry": "templates/release.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "function_name",
+      "build_artifact",
+      "provider"
+    ],
+    "properties": {
+      "function_name": {
+        "type": "string"
+      },
+      "build_artifact": {
+        "type": "string"
+      },
+      "provider": {
+        "enum": [
+          "aws",
+          "gcp",
+          "azure",
+          "fly",
+          "cloudflare"
+        ],
+        "default": "aws"
+      },
+      "traffic_shift_pct": {
+        "type": "integer",
+        "default": 100
+      },
+      "alias": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "arn",
+      "result",
+      "cold_start_ms_p95"
+    ],
+    "properties": {
+      "arn": {
+        "type": "string"
+      },
+      "result": {
+        "enum": [
+          "deployed",
+          "rolled_back",
+          "paused"
+        ]
+      },
+      "cold_start_ms_p95": {
+        "type": "integer"
+      },
+      "invocations": {
+        "type": "integer"
+      }
+    }
+  },
+  "writes": [
+    "dist/**",
+    ".serverless/**"
+  ],
+  "reads": [
+    "serverless.yml",
+    "package.json",
+    "terraform/**"
+  ],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential",
+    "on": [
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.8,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.2,
+    "must_have": [
+      "arn",
+      "result"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "ops.incident_responder"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

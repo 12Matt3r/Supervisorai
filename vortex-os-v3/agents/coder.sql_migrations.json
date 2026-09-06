@@ -1,0 +1,116 @@
+{
+  "name": "coder.sql_migrations",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Generates reversible database migrations (up/down) for PostgreSQL, MySQL, or SQLite. Adds indexes, constraints, and data back-fills safely.",
+  "entry": "templates/coder.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "task_description",
+      "db_engine"
+    ],
+    "properties": {
+      "task_description": {
+        "type": "string"
+      },
+      "db_engine": {
+        "enum": [
+          "postgresql",
+          "mysql",
+          "sqlite",
+          "mariadb"
+        ]
+      },
+      "online_migration": {
+        "type": "boolean",
+        "default": true
+      },
+      "max_lock_ms": {
+        "type": "integer",
+        "default": 200
+      },
+      "target_schema": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "up_sql",
+      "down_sql",
+      "explain_plan"
+    ],
+    "properties": {
+      "up_sql": {
+        "type": "string"
+      },
+      "down_sql": {
+        "type": "string"
+      },
+      "explain_plan": {
+        "type": "string"
+      },
+      "data_backfill": {
+        "type": "string"
+      },
+      "estimated_rows_affected": {
+        "type": "integer"
+      }
+    }
+  },
+  "writes": [
+    "migrations/*.sql",
+    "migrations/.meta.json"
+  ],
+  "reads": [
+    "migrations/",
+    "schema/**",
+    "db/schema.sql"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "4Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.9,
+    "max_latency_s": 900,
+    "max_cost_usd": 0.8,
+    "must_have": [
+      "up_sql",
+      "down_sql",
+      "explain_plan"
+    ],
+    "must_not": [
+      "DROP TABLE",
+      "TRUNCATE",
+      "DELETE FROM"
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "reviewer.code"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

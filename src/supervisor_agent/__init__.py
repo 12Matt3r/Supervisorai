@@ -41,6 +41,7 @@ class QualityMetrics:
     coherence_score: float = 0.0
     structure_score: float = 0.0
     instruction_adherence: float = 0.0
+    completeness_score: float = 0.0
 
 @dataclass
 class MonitoringRules:

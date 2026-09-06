@@ -1,0 +1,97 @@
+{
+  "name": "data.lineage",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Builds column-level data lineage by static analysis of ETL code (SQL, dbt, Spark) plus runtime log sampling. Emits OpenLineage-ready JSON.",
+  "entry": "http://mcp.local:7474/tools/data_lineage",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "etl_sources"
+    ],
+    "properties": {
+      "etl_sources": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "format": {
+        "enum": [
+          "openlineage",
+          "datahub",
+          "csv"
+        ],
+        "default": "openlineage"
+      },
+      "include_runtime_samples": {
+        "type": "boolean",
+        "default": false
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "lineage"
+    ],
+    "properties": {
+      "lineage": {
+        "type": "object"
+      },
+      "datasets": {
+        "type": "integer"
+      },
+      "edges": {
+        "type": "integer"
+      },
+      "broken_chains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "writes": [
+    "lineage.json"
+  ],
+  "reads": [
+    "{{etl_sources}}"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "6Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.75,
+    "max_latency_s": 1500,
+    "max_cost_usd": 0.3,
+    "must_have": [
+      "lineage"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

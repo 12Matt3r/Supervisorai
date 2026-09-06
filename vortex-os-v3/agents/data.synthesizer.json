@@ -1,0 +1,104 @@
+{
+  "name": "data.synthesizer",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Generates synthetic rows matching production statistics. Supports schemas+FKs, PII auto-redaction, drift scoring vs the source.",
+  "entry": "templates/synth.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "schema",
+      "row_count"
+    ],
+    "properties": {
+      "schema": {
+        "type": "string"
+      },
+      "row_count": {
+        "type": "integer"
+      },
+      "fk_targets": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "pii_safe": {
+        "type": "boolean",
+        "default": true
+      },
+      "preserve_quants": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "path",
+      "drift_score"
+    ],
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "row_count": {
+        "type": "integer"
+      },
+      "drift_score": {
+        "type": "number"
+      },
+      "pii_check_pass": {
+        "type": "boolean"
+      }
+    }
+  },
+  "writes": [
+    "synthetic/{{name}}.parquet",
+    "synthetic/recipe.json"
+  ],
+  "reads": [
+    "schema/**",
+    "{{input.schema}}"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "8Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.8,
+    "max_latency_s": 1500,
+    "max_cost_usd": 0.5,
+    "must_have": [
+      "path",
+      "drift_score"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "data.lineage"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

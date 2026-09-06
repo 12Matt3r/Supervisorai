@@ -37,10 +37,18 @@ class OrchestrationTask:
     description: str
     required_capabilities: List[str]
     dependencies: Set[str] = field(default_factory=set) # Set of other task_ids
+    validation_conditions: List[str] = field(default_factory=list) # Audit checks for this task
     assigned_agent_id: str | None = None
+    assigned_agent: str | None = None    # Roster agent name (persona) chosen by the planner
+    deliverable: str = ""                # Suggested output filename (e.g. index.html)
+    deliverable_path: str = ""           # Where the artifact was written on disk
+    high_stakes: bool = False            # Requires HITL approval before finalizing
     status: TaskStatus = TaskStatus.PENDING
     input_data: Dict[str, Any] = field(default_factory=dict)
     output_data: Dict[str, Any] | None = None
+    output_text: str = ""            # The worker's produced deliverable
+    audit: Dict[str, Any] | None = None  # Supervisor's audit verdict for the output
+    attempts: int = 0                # How many worker attempts (incl. corrections)
     created_at: float = field(default_factory=time.time)
     completed_at: float | None = None
 

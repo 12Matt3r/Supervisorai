@@ -48,12 +48,16 @@ class LLMJudge:
         # Use the new generic client to make the query
         response = await self.llm_client.query(prompt)
 
-        # Handle mock responses or errors from the client
+        # Handle mock responses or errors from the client. Flag that this is not
+        # a real second opinion (llm_available=False) so callers can choose to
+        # rely on their own heuristic instead of this placeholder score.
         if "mock_response" in response or "error" in response:
             return {
-                "overall_score": 0.85, # Return a default high score
+                "overall_score": 0.85, # Placeholder score when no judge is available
                 "reasoning": response.get("mock_response") or response.get("details", "An unknown error occurred."),
-                "is_safe": True
+                "is_safe": True,
+                "llm_available": False,
             }
 
+        response.setdefault("llm_available", True)
         return response

@@ -1,0 +1,108 @@
+{
+  "name": "writer.slack_digest",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Summarizes Slack/Teams channels into a daily digest: top themes, blockers, decisions, action items. Posts back to a designated channel.",
+  "entry": "templates/digest.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "channels"
+    ],
+    "properties": {
+      "channels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "lookback_h": {
+        "type": "integer",
+        "default": 24
+      },
+      "audience": {
+        "enum": [
+          "exec",
+          "eng-lead",
+          "team"
+        ],
+        "default": "team"
+      },
+      "post_target": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "digest",
+      "themes",
+      "actions"
+    ],
+    "properties": {
+      "digest": {
+        "type": "string"
+      },
+      "themes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "actions": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "posted_url": {
+        "type": "string"
+      }
+    }
+  },
+  "writes": [
+    "digests/{{date}}/{{channel}}.md"
+  ],
+  "reads": [],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential",
+    "on": [
+      "transient_io"
+    ]
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 300,
+    "max_cost_usd": 0.05,
+    "must_have": [
+      "digest",
+      "themes",
+      "actions"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}
