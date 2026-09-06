@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # Job-level env so the secret is available to the `if:` guard below.
+    env:
+      GMI_API_KEY: ${{ secrets.GMI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pytest-asyncio
+
+      - name: Test suite
+        run: PYTHONPATH=src pytest tests/ -q
+
+      - name: Preflight — validate config (no key required)
+        # Runs in offline-mock mode; asserts env + JSON configs are well-formed.
+        run: python scripts/preflight.py
+
+      - name: Preflight — require LIVE MiniMax-M3
+        # Opt-in: only runs when a GMI_API_KEY secret is configured on the repo.
+        # Sends one tiny real request to prove the deploy is on live M3, not the
+        # silent offline mock. Fails the build if the key can't authenticate.
+        if: ${{ env.GMI_API_KEY != '' }}
+        run: python scripts/preflight.py --require-live

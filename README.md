@@ -308,6 +308,25 @@ Cloud via their `lib/minimax.sh` bridge (deterministic offline fallback with no 
   flavor: a 30+ agent roster with consensus voting, cost governance, and quality
   gates. A real `adapters/minimax_m3.sh` drives the adapter chain.
 
+## Path to production
+
+The engine is verified and green; here's the concrete path from
+hackathon-strong to enterprise-ready — with what's already done in this branch:
+
+**Done**
+- ✅ **Green CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — the full test suite + config preflight on every push.
+- ✅ **Loud-fail preflight** instead of a silent mock, with a `--require-live` gate for CI/deploy.
+- ✅ **Configuration matrix + production checklist** ([`docs/CONFIGURATION.md`](docs/CONFIGURATION.md)).
+- ✅ **Feedback loop** persisted, version-controlled, and charted ([`docs/FEEDBACK_LOOP.md`](docs/FEEDBACK_LOOP.md)).
+
+**Next**
+- **Secrets** — source `GMI_API_KEY` from a secrets manager / CI secret rather than `.env`; add the repo `GMI_API_KEY` Actions secret to switch on the live-M3 CI gate.
+- **Auth & multi-tenancy** on the FastMCP server — per-caller keys, rate limits, quotas.
+- **Live drift widget** — surface `weight_history.jsonl` as a real-time dashboard chart (today it renders as a generated PNG).
+- **Shared weight store** — move `config/weights.json` to a shared backend so the learned policy stays consistent across instances.
+- **Observability** — structured metrics/traces (token spend, audit pass-rate, intervention counts) to a monitoring backend.
+- **Containerization** — a Dockerfile whose entrypoint runs `preflight --require-live` before it serves traffic.
+
 ## 6. Future Roadmap
 
 This project has a rich roadmap for future development.
