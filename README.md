@@ -289,4 +289,4 @@ This project has a rich roadmap for future development.
 
 This project was developed as part of the Minimax Agent Hackathon.
 
-**Lead AI Software Engineer:** Jules , Claude Code, Minimax M3 
+**Lead AI Software Engineer:** Google Jules , Claude Code, Minimax M3 , 12matt3r/Hungry SHMOREZ 
