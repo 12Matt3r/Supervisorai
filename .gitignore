@@ -35,3 +35,17 @@ supervisor.log
 *.swo
 deliverables/
 supervisor_data/pending_approvals/
+
+# VORTEX-OS skill runtime artifacts (both flavors)
+vortex-os/swarms/
+vortex-os/tasks/
+vortex-os/memory/
+vortex-os/tmp/
+vortex-os/deliverables/
+vortex-os/state/pending_approvals/
+vortex-os/state/self_healing_log.txt
+vortex-os-v3/state/
+vortex-os-v3/memory/
+vortex-os-v3/.orchestr8r/
+vortex-os-v3/adapters/*.sh
+!vortex-os-v3/adapters/minimax_m3.sh

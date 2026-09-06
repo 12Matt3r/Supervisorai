@@ -1,0 +1,49 @@
+{
+  "name": "customer_personas",
+  "description": "Five parallel persona researchers + one harmonized persona document.",
+  "tags": ["research","synthesis","personas"],
+  "tasks": [
+    {
+      "id": "r_persona_1",
+      "description": "Research persona #1 for the {{PRODUCT}} SaaS — demographics, jobs-to-be-done, channels.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/persona_1.md"
+    },
+    {
+      "id": "r_persona_2",
+      "description": "Research persona #2 for the {{PRODUCT}} SaaS — demographics, jobs-to-be-done, channels.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/persona_2.md"
+    },
+    {
+      "id": "r_persona_3",
+      "description": "Research persona #3 for the {{PRODUCT}} SaaS.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/persona_3.md"
+    },
+    {
+      "id": "r_persona_4",
+      "description": "Research persona #4 for the {{PRODUCT}} SaaS.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/persona_4.md"
+    },
+    {
+      "id": "r_persona_5",
+      "description": "Research persona #5 for the {{PRODUCT}} SaaS.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/persona_5.md"
+    },
+    {
+      "id": "w_harmonized_personas",
+      "description": "Harmonize the five personas; ensure no overlap and produce a final reference doc.",
+      "agent_role": "documentation",
+      "depends_on": ["r_persona_1","r_persona_2","r_persona_3","r_persona_4","r_persona_5"],
+      "output_path": "./deliverables/personas.md"
+    }
+  ]
+}

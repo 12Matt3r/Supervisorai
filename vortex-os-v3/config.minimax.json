@@ -1,0 +1,240 @@
+{
+  "$schema": "./schemas/config.schema.json",
+  "project": {
+    "name": "MiniMax Agent Roster",
+    "version": "2.0.0",
+    "author": "MiniMax",
+    "description": "Reference config wiring the 30-agent catalog to the MiniMax Agent ecosystem."
+  },
+  "paths": {
+    "plan_file": "./plan.json",
+    "state_file": "./state.json",
+    "memory_dir": "./memory",
+    "output_dir": "./deliverables",
+    "audit_file": "./audit.jsonl",
+    "memory_db": "./memory.db",
+    "traits_dir": "./traits/",
+    "compiled_prompts_dir": "./state/compiled_prompts/"
+  },
+  "dynamic_agents": {
+    "enabled": true,
+    "static_only": false,
+    "auto_spawn": false,
+    "max_dynamic_agents": 50,
+    "auto_tick_quarantine": false,
+    "quarantine_default": 3,
+    "orphan_dir": "agents/orphaned/",
+    "similarity_threshold": {
+      "reuse_max": 0.15,
+      "reuse_log_max": 0.4,
+      "propose_max": 0.7
+    },
+    "weights": {
+      "schema": 0.5,
+      "description": 0.25,
+      "capabilities": 0.25
+    }
+  },
+  "agents": {
+    "research": {
+      "primary": "researcher.web",
+      "supports_parallel": true,
+      "max_parallel": 5,
+      "max_input_tokens": 8000,
+      "best_for": [
+        "background research",
+        "competitive analysis",
+        "data synthesis"
+      ]
+    },
+    "research_codebase": {
+      "primary": "researcher.codebase",
+      "supports_parallel": true,
+      "max_parallel": 3,
+      "best_for": [
+        "code archaeology",
+        "dependency analysis"
+      ]
+    },
+    "research_academic": {
+      "primary": "researcher.academic",
+      "supports_parallel": false,
+      "best_for": [
+        "literature reviews",
+        "citation chains"
+      ]
+    },
+    "code_python": {
+      "primary": "coder.python",
+      "supports_parallel": true,
+      "max_parallel": 3,
+      "max_input_tokens": 12000,
+      "best_for": [
+        "Python modules",
+        "scripts",
+        "refactors"
+      ]
+    },
+    "code_typescript": {
+      "primary": "coder.typescript",
+      "supports_parallel": true,
+      "max_parallel": 3,
+      "best_for": [
+        "TS/React",
+        "Node services"
+      ]
+    },
+    "code_rust": {
+      "primary": "coder.rust",
+      "supports_parallel": false,
+      "max_input_tokens": 12000,
+      "best_for": [
+        "Rust crates",
+        "systems code"
+      ]
+    },
+    "code_sql": {
+      "primary": "coder.sql_migrations",
+      "supports_parallel": false,
+      "best_for": [
+        "schema migrations",
+        "DDL"
+      ]
+    },
+    "code_iac": {
+      "primary": "coder.terraform",
+      "supports_parallel": false,
+      "best_for": [
+        "Terraform",
+        "Pulumi",
+        "IaC"
+      ]
+    },
+    "review_code": {
+      "primary": "reviewer.code",
+      "supports_parallel": true,
+      "max_parallel": 5
+    },
+    "review_architecture": {
+      "primary": "reviewer.architecture",
+      "supports_parallel": false
+    },
+    "review_dependencies": {
+      "primary": "reviewer.dependencies",
+      "supports_parallel": false
+    },
+    "test_mutation": {
+      "primary": "tester.mutation",
+      "supports_parallel": false
+    },
+    "qa_flake": {
+      "primary": "qa.flakehunter",
+      "supports_parallel": false
+    },
+    "security_sast": {
+      "primary": "security.sast"
+    },
+    "security_deps": {
+      "primary": "security.deps"
+    },
+    "security_secrets": {
+      "primary": "security.secrets"
+    },
+    "security_threat": {
+      "primary": "security.threatmodel"
+    },
+    "deploy_k8s": {
+      "primary": "ops.deploy.k8s"
+    },
+    "deploy_serverless": {
+      "primary": "ops.deploy.serverless"
+    },
+    "incident_response": {
+      "primary": "ops.incident_responder"
+    },
+    "cost_optimize": {
+      "primary": "ops.cost_optimizer"
+    },
+    "data_profile": {
+      "primary": "data.profiler"
+    },
+    "data_clean": {
+      "primary": "data.cleaner"
+    },
+    "data_synth": {
+      "primary": "data.synthesizer"
+    },
+    "data_lineage": {
+      "primary": "data.lineage"
+    },
+    "write_docs": {
+      "primary": "writer.docs"
+    },
+    "write_commit": {
+      "primary": "writer.commit"
+    },
+    "write_slack_digest": {
+      "primary": "writer.slack_digest"
+    },
+    "pm_prioritize": {
+      "primary": "pm.prioritizer"
+    },
+    "support_triage": {
+      "primary": "support.triager"
+    }
+  },
+  "passes": {
+    "pass_1_decomposition": {
+      "enabled": true,
+      "respect_invariants": true
+    },
+    "pass_2_dispatch": {
+      "enabled": true,
+      "respect_similarity_band": true
+    },
+    "pass_3_aggregation": {
+      "enabled": true,
+      "run_lint_on_dynamic_agents": true
+    },
+    "pass_4_seal": {
+      "enabled": true
+    },
+    "pass_5_notification": {
+      "enabled": false
+    }
+  },
+  "aesthetics": {
+    "enabled": false,
+    "version": "1.0.0",
+    "rules": [],
+    "applies_to_agents": [],
+    "violation_action": "warn"
+  },
+  "security": {
+    "adversarial_llm_enabled": false,
+    "adversarial_threat_threshold": 0.85,
+    "canary_tokens": [
+      "ORCH_CANARY_42_alpha",
+      "ORCH_CANARY_99_beta"
+    ],
+    "consensus": {
+      "min_voters": 3,
+      "scoring": {
+        "invariant_weight": 0.5,
+        "test_weight": 0.3,
+        "sanity_weight": 0.2
+      },
+      "cost_cap_usd": 5
+    },
+    "sandbox": {
+      "image": "sandbox_env.wasm",
+      "timeout_ms": 5000
+    }
+  },
+  "cart": {
+    "enabled": false,
+    "schedule": "0 3 * * *",
+    "fail_action": "quarantine",
+    "dry_run_by_default": true
+  }
+}

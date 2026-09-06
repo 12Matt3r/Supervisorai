@@ -1,0 +1,26 @@
+{
+  "project": { "name": "Competitor Landscape", "version": "1.0.0" },
+  "paths": {
+    "plan_file": "./plan.json",
+    "state_file": "./state.json",
+    "output_dir": "./out",
+    "audit_file": "./audit.jsonl"
+  },
+  "agents": {
+    "research":      { "primary": "deep_research_tasks","supports_parallel": true,"max_parallel": 5, "best_for": ["research"] },
+    "documentation":{ "primary": "report_writer_agent","supports_parallel": false,                  "best_for": ["synthesis"] }
+  },
+  "agent_aliases": {
+    "research": "deep_research_tasks",
+    "documentation": "report_writer_agent"
+  },
+  "passes": {
+    "pass_1_task_analysis_decomposition": { "enabled": true, "max_subtasks": 10 },
+    "pass_2_agent_selection_dispatch":    { "enabled": true, "max_concurrent": 5, "default_handoff": "bidirectional" },
+    "pass_3_result_aggregation_validation":{ "enabled": true, "validate_output_paths_exist": true },
+    "pass_4_logging_sealing":             { "enabled": true, "sealed_marker": "[STATUS: DONE.]" }
+  },
+  "context_recovery": { "enabled": true, "memory_namespace": "landscape_demo" },
+  "delegation":        { "enabled": true, "prefer_parallel": true, "min_parallel_size": 3 },
+  "dynamic_routing":   { "enabled": false }
+}

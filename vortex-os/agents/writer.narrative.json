@@ -1,0 +1,11 @@
+{
+  "name": "writer.narrative",
+  "version": "1.0.0",
+  "kind": "worker",
+  "inherits_from": ["persona.core_logic"],
+  "description": "Tier 3 Narrative Specialist. Writes deep, canonical scripts and lore, strictly adhering to the cosmic surrealism and universe laws of When Ocean Meets Sky.",
+  "capabilities": ["scriptwriting", "worldbuilding", "dialogue_generation"],
+  "invariants_compliant": ["I1", "I3"],
+  "reads": ["swarms/active_*/plan.json", "project_docs/universe_rules.md"],
+  "writes": ["swarms/active_*/deliverables/"]
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Orchestration State",
+  "description": "Defines the shape of a state.json file managed by orchestrator_skill v2.",
+  "type": "object",
+  "required": ["plan_id"],
+  "properties": {
+    "plan_id":            { "type": "string" },
+    "parent_plan_id":     { "type": "string" },
+    "current_pass":       { "type": "integer" },
+    "current_executing_task": { "type": "string" },
+    "context_tokens_used":{ "type": "integer", "minimum": 0 },
+    "context_windows_used":{ "type": "integer", "minimum": 0 },
+    "last_checkpoint":    { "type": "string", "format": "date-time" },
+    "dispatched_tasks":   { "type": "array", "items": { "type": "string" } },
+    "completed_tasks":    { "type": "array", "items": { "type": "string" } },
+    "failed_tasks":       { "type": "array", "items": { "type": "string" } },
+    "escalated_tasks":    { "type": "array", "items": { "type": "string" } },
+    "skipped_tasks":      { "type": "array", "items": { "type": "string" } },
+    "sealed_at":          { "type": "string", "format": "date-time" },
+    "sealed_marker":      { "type": "string" },
+    "sealed_unsealed_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "by": { "type": "string" },
+          "action": { "type": "string", "enum": ["seal","unseal"] }
+        }
+      }
+    },
+    "total_cost_usd":     { "type": "number", "minimum": 0 },
+    "audit_pointer":      { "type": "string" }
+  }
+}

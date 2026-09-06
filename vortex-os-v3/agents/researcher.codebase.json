@@ -1,0 +1,102 @@
+{
+  "name": "researcher.codebase",
+  "version": "2.0.0",
+  "kind": "shell",
+  "description": "Searches the local codebase (rg/ctags/LSIF-aware). Builds semantic answer with file paths, line ranges, and call-graph snippets.",
+  "entry": "scripts/codebase_search.sh",
+  "writes": [
+    "research/code/{{query_slug}}.md"
+  ],
+  "reads": [
+    "./**"
+  ],
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string"
+      },
+      "scope": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "max_hits": {
+        "type": "integer",
+        "default": 30
+      },
+      "follow_refs": {
+        "type": "boolean",
+        "default": true
+      },
+      "semantic": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "answer",
+      "hits"
+    ],
+    "properties": {
+      "answer": {
+        "type": "string"
+      },
+      "hits": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "call_graph": {
+        "type": "object"
+      }
+    }
+  },
+  "resources": {
+    "cpu": "med",
+    "mem": "3Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 300,
+    "max_cost_usd": 0,
+    "must_have": [
+      "answer",
+      "hits"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "writer.docs"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

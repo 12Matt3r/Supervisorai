@@ -1,0 +1,106 @@
+{
+  "name": "data.profiler",
+  "version": "2.0.0",
+  "kind": "shell",
+  "description": "Profiles a dataset: type inference, null %, distinct count, value distributions, drift vs a baseline. Honors PII tagging.",
+  "entry": "scripts/profile_dataset.py",
+  "writes": [
+    "profile.json",
+    "profile.md"
+  ],
+  "reads": [
+    "{{input.path}}"
+  ],
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "baseline_path": {
+        "type": "string"
+      },
+      "pii_redaction": {
+        "type": "boolean",
+        "default": true
+      },
+      "sample_rows": {
+        "type": "integer",
+        "default": 100000
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "columns",
+      "row_count"
+    ],
+    "properties": {
+      "columns": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "row_count": {
+        "type": "integer"
+      },
+      "drift_score": {
+        "type": "number"
+      },
+      "pii_columns": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "resources": {
+    "cpu": "high",
+    "mem": "6Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.7,
+    "max_latency_s": 900,
+    "max_cost_usd": 0.05,
+    "must_have": [
+      "columns",
+      "row_count"
+    ],
+    "must_not": [
+      "ssn=",
+      "credit_card",
+      "@email="
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "data.cleaner"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

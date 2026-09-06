@@ -1,0 +1,49 @@
+{
+  "name": "competitor_landscape",
+  "description": "Five parallel researchers, one synthesis writer.",
+  "tags": ["research","synthesis","competitive"],
+  "tasks": [
+    {
+      "id": "r_competitor_1",
+      "description": "Research competitor #1 in {{INDUSTRY}} — recent product moves, pricing, and positioning.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/comp_1.md"
+    },
+    {
+      "id": "r_competitor_2",
+      "description": "Research competitor #2 in {{INDUSTRY}} — recent product moves, pricing, and positioning.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/comp_2.md"
+    },
+    {
+      "id": "r_competitor_3",
+      "description": "Research competitor #3 in {{INDUSTRY}} — recent product moves, pricing, and positioning.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/comp_3.md"
+    },
+    {
+      "id": "r_competitor_4",
+      "description": "Research competitor #4 in {{INDUSTRY}} — recent product moves, pricing, and positioning.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/comp_4.md"
+    },
+    {
+      "id": "r_competitor_5",
+      "description": "Research competitor #5 in {{INDUSTRY}} — recent product moves, pricing, and positioning.",
+      "agent_role": "research",
+      "depends_on": [],
+      "output_path": "./deliverables/comp_5.md"
+    },
+    {
+      "id": "w_landscape_report",
+      "description": "Synthesize competitor research into a 5-page landscape report.",
+      "agent_role": "documentation",
+      "depends_on": ["r_competitor_1","r_competitor_2","r_competitor_3","r_competitor_4","r_competitor_5"],
+      "output_path": "./deliverables/landscape.md"
+    }
+  ]
+}

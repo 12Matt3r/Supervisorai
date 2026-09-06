@@ -84,6 +84,25 @@ On top of the reasoning loop, SupervisorAI runs as an autonomous studio:
 > These four capabilities were consolidated from a sibling prototype (VORTEX-OS)
 > onto this engine, so there is one verified system instead of two.
 
+### The VORTEX-OS studio skills (`vortex-os/`, `vortex-os-v3/`)
+
+The Python engine above grew out of **VORTEX-OS**, a bash "skill" that runs the
+same 4-tier orchestration from the command line. Both flavors ship here, and both
+now call **MiniMax-M3 on GMI Cloud** for real (via `lib/minimax.sh`) instead of
+the placeholder stubs they were built with:
+
+- **`vortex-os/`** — the creative studio flavor: 4-tier chain of command, HITL
+  Deep-Sleep gate, continuity engine, self-healing, and real on-disk
+  deliverables. Run `./skill.sh --dispatch-master <objective.md>`.
+- **`vortex-os-v3/`** — the software-engineering flavor: a 30+ agent roster
+  (coder.python, reviewer.code, security.sast, …) with dynamic agents, consensus
+  voting, cost governance, and quality gates. A real `adapters/minimax_m3.sh`
+  drives the adapter chain, and the rule-verdict / consensus steps call M3.
+
+Set `GMI_API_KEY` (see `.env.example`) and each skill runs against real M3;
+without a key both fall back to a deterministic offline mode so they never
+hard-crash.
+
 ## GMI Cloud / MiniMax-M3 integration
 
 | | |

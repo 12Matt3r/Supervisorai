@@ -1,0 +1,49 @@
+{
+  "name": "marketing_site",
+  "description": "Design + build a 5-page static marketing site.",
+  "tags": ["web","design","build"],
+  "tasks": [
+    {
+      "id": "d_site",
+      "description": "Design the {{PRODUCT}} marketing site: content structure, design tokens, and design spec.",
+      "agent_role": "design_web",
+      "depends_on": [],
+      "output_path": "./deliverables/design/"
+    },
+    {
+      "id": "b_home",
+      "description": "Build the home page for the {{PRODUCT}} site.",
+      "agent_role": "build_static_site",
+      "depends_on": ["d_site"],
+      "output_path": "./deliverables/site/index.html"
+    },
+    {
+      "id": "b_features",
+      "description": "Build the features page.",
+      "agent_role": "build_static_site",
+      "depends_on": ["d_site"],
+      "output_path": "./deliverables/site/features.html"
+    },
+    {
+      "id": "b_pricing",
+      "description": "Build the pricing page.",
+      "agent_role": "build_static_site",
+      "depends_on": ["d_site"],
+      "output_path": "./deliverables/site/pricing.html"
+    },
+    {
+      "id": "b_blog",
+      "description": "Build the blog index page.",
+      "agent_role": "build_static_site",
+      "depends_on": ["d_site"],
+      "output_path": "./deliverables/site/blog.html"
+    },
+    {
+      "id": "b_contact",
+      "description": "Build the contact page.",
+      "agent_role": "build_static_site",
+      "depends_on": ["d_site"],
+      "output_path": "./deliverables/site/contact.html"
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "name": "coder.terraform",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Writes Terraform / OpenTofu IaC: modules, variables, outputs, state-aware plans. Honors provider versions and uses tflint + tfsec gates.",
+  "entry": "templates/coder.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "task_description"
+    ],
+    "properties": {
+      "task_description": {
+        "type": "string"
+      },
+      "provider": {
+        "enum": [
+          "aws",
+          "gcp",
+          "azure",
+          "cloudflare",
+          "github"
+        ],
+        "default": "aws"
+      },
+      "module_path": {
+        "type": "string",
+        "default": "infra/modules/"
+      },
+      "tf_version": {
+        "type": "string",
+        "default": "1.9.0"
+      },
+      "state_lock_required": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "tf_files",
+      "plan_summary",
+      "cost_delta"
+    ],
+    "properties": {
+      "tf_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "plan_summary": {
+        "type": "string"
+      },
+      "cost_delta_usd": {
+        "type": "number"
+      },
+      "security_findings": {
+        "type": "integer"
+      }
+    }
+  },
+  "writes": [
+    "{{module_path}}**/*.tf",
+    "{{module_path}}**/*.tfvars"
+  ],
+  "reads": [
+    "{{module_path}}**/*.tf",
+    "terraform.tfstate"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "3Gi",
+    "net": "on-demand"
+  },
+  "retry_policy": {
+    "max_attempts": 1,
+    "backoff": "none"
+  },
+  "quality": {
+    "min_score": 0.85,
+    "max_latency_s": 1500,
+    "max_cost_usd": 0.5,
+    "must_have": [
+      "tf_files",
+      "plan_summary",
+      "cost_delta"
+    ],
+    "must_not": [
+      "hardcoded_secret",
+      "aws_secret_key",
+      "password = \""
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "reviewer.architecture"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

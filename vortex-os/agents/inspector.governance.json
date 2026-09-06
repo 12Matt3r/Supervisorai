@@ -1,0 +1,11 @@
+{
+  "name": "inspector.governance",
+  "version": "1.0.0",
+  "kind": "dynamic",
+  "inherits_from": ["persona.core_logic", "management.audit"],
+  "description": "Cross-cutting Telemetry Inspector. Monitors real-time pipeline execution metadata, evaluates token burn velocities against actual performance milestones, detects recursive generation loops, and triggers structural interventions.",
+  "capabilities": ["telemetry_analysis", "budget_enforcement", "loop_detection"],
+  "invariants_compliant": ["I1", "I2", "I6", "I8"],
+  "reads": ["memory/audit.jsonl", "state/active_budgets.json"],
+  "writes": ["state/inspector_interventions.log"]
+}

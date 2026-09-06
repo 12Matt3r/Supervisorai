@@ -1,0 +1,120 @@
+{
+  "name": "coder.rust",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Implements Rust source: idiomatic modules, error types with thiserror, async with tokio, cargo test integration. Gated by clippy + cargo test.",
+  "entry": "templates/coder.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "task_description",
+      "target_files"
+    ],
+    "properties": {
+      "task_description": {
+        "type": "string"
+      },
+      "target_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "edition": {
+        "enum": [
+          "2021",
+          "2024"
+        ],
+        "default": "2021"
+      },
+      "no_unsafe": {
+        "type": "boolean",
+        "default": true
+      },
+      "unsafe_allowed_in": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "diff",
+      "summary",
+      "test_results"
+    ],
+    "properties": {
+      "diff": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "test_results": {
+        "type": "object"
+      },
+      "clippy_warns": {
+        "type": "integer"
+      }
+    }
+  },
+  "writes": [
+    "{{target_files}}",
+    "Cargo.toml",
+    "patch.diff"
+  ],
+  "reads": [
+    "{{target_files}}",
+    "Cargo.toml",
+    "src/**"
+  ],
+  "resources": {
+    "cpu": "high",
+    "mem": "6Gi",
+    "net": "offline"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.85,
+    "max_latency_s": 2400,
+    "max_cost_usd": 1.8,
+    "must_have": [
+      "diff",
+      "summary",
+      "test_results"
+    ],
+    "must_not": [
+      "unwrap()",
+      "expect(",
+      "// TODO",
+      "println!"
+    ]
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "tester.mutation"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

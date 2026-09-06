@@ -1,0 +1,102 @@
+{
+  "name": "reviewer.dependencies",
+  "version": "2.0.0",
+  "kind": "subplan",
+  "description": "Reviews dependencies for license compatibility (GPL/AGPL/SSPL), maintenance health, abandonment risk, supply-chain issues, version currency.",
+  "entry": "templates/research.json",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "manifest_files"
+    ],
+    "properties": {
+      "manifest_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "license_allowlist": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "abandoned_days": {
+        "type": "integer",
+        "default": 365
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "report"
+    ],
+    "properties": {
+      "report": {
+        "type": "string"
+      },
+      "forbidden_count": {
+        "type": "integer"
+      },
+      "abandoned_count": {
+        "type": "integer"
+      },
+      "outdated_count": {
+        "type": "integer"
+      },
+      "actions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "writes": [
+    "reports/deps-review.md"
+  ],
+  "reads": [
+    "{{manifest_files}}"
+  ],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 2,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.8,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.2,
+    "must_have": [
+      "report",
+      "actions"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "security.deps"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}

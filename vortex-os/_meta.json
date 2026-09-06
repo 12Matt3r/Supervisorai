@@ -1,0 +1,135 @@
+{
+  "skill_id": "minimax-skill-vortex-os-7c3a9f1e",
+  "name": "VORTEX-OS",
+  "display_name": "VORTEX-OS — Native Autonomous Studio Command Center",
+  "version": "4.0.0",
+  "tagline": "Stop managing tasks; start commanding a native digital workforce.",
+  "description": "VORTEX-OS is the enterprise-grade brain for your digital studio, built exclusively to harness MiniMax's internal multimodal engines. VORTEX-OS replaces manual prompting with a hierarchical, self-governing swarm of specialized agents. It plans, executes, and quality-controls complex projects entirely in-house — from narrative design and native UI/app scaffolding to local ffmpeg audio processing and Hailuo video generation. Stop managing tasks; start commanding a native digital workforce.",
+  "short_description": "VORTEX-OS: Native Autonomous Studio Command Center.",
+  "author": "MiniMax Agent",
+  "license": "MIT",
+  "category": "automation",
+  "subcategory": "multi-agent-orchestration",
+  "tags": [
+    "vortex-os",
+    "native-minimax",
+    "command-and-control",
+    "multi-agent",
+    "orchestrator",
+    "hierarchical",
+    "continuity-engine",
+    "self-healing",
+    "human-in-the-loop",
+    "audio-generation",
+    "video-generation",
+    "hailuo",
+    "ffmpeg",
+    "code-generation",
+    "narrative",
+    "worldbuilding",
+    "auditable",
+    "digital-factory",
+    "in-house",
+    "vibeos"
+  ],
+  "entry_point": "skill.sh",
+  "interface": {
+    "type": "cli",
+    "command": "./skill.sh",
+    "args_format": "space-separated",
+    "primary_flag": "--dispatch-master"
+  },
+  "trigger": {
+    "when_to_use": [
+      "Building complex multi-disciplinary projects (WebSims, VibeOS modules, games, interactive apps, narrative series)",
+      "Managing multi-stage workflows across writing, audio, code, and video domains using native MiniMax engines",
+      "Automating multi-agent orchestration with universe-constrained creativity (When Ocean Meets Sky, Book of the Fading Age)",
+      "Native Hailuo video generation and MiniMax image generation pipelines",
+      "Local ffmpeg audio processing, sample manipulation, and Foley synthesis",
+      "Internal app scaffolding — brainstorming, architecting, and coding complex digital environments for the MiniMax ecosystem",
+      "Long-running creative projects requiring continuity enforcement (visual novels, games, series, lore universes)",
+      "Tasks requiring auditable decision-making with full audit trails",
+      "High-stakes deployments that need Human-in-the-Loop approval",
+      "Self-healing pipelines that recover from LLM drift",
+      "Procedural media generation (audio, narrative, code, video) at factory scale, entirely in-house with no external API keys"
+    ],
+    "do_not_use_when": [
+      "Simple one-line code questions",
+      "Pure chat / Q&A tasks",
+      "Single-file edits with no cross-domain coordination",
+      "Read-only research questions"
+    ]
+  },
+  "files": {
+    "primary_entry": "skill.sh",
+    "instruction_brain": "SKILL.md",
+    "platform_metadata": "_meta.json",
+    "user_docs": "README.md",
+    "llm_instructions": "INSTRUCTIONS.md",
+    "post_upload_verify": "verify.sh"
+  },
+  "requirements": {
+    "shell": "bash >= 4.0",
+    "system_tools": ["python3", "jq", "sqlite3", "ffmpeg"],
+    "minimax_engines": [
+      "minimax-music",
+      "minimax-media",
+      "hailuo",
+      "minimax-image"
+    ]
+  },
+  "capabilities": [
+    "decompose-master-objective",
+    "dispatch-writer",
+    "dispatch-media-native",
+    "dispatch-coder-typescript",
+    "dispatch-coder-python",
+    "dispatch-researcher",
+    "dispatch-analyst",
+    "continuity-check",
+    "lore-enforcement",
+    "prompt-optimize",
+    "hitl-yield",
+    "hitl-approve",
+    "hitl-deny",
+    "agents-lint",
+    "agents-discover",
+    "native-audio-synthesis",
+    "native-video-generation",
+    "native-image-generation",
+    "ffmpeg-audio-processing",
+    "golden-path-templates",
+    "token-auditing",
+    "adversarial-red-teaming"
+  ],
+  "architecture": {
+    "tiers": [
+      "T0: General Manager (Apex — strategic entry, master decomposition)",
+      "T1: Store Supervisor (Domain Strategy — Golden Path & resource allocation)",
+      "T2: Shift Supervisor (Tactical QA — Continuity Engine, sandbox, HITL)",
+      "T3: The Crew (Specialized Workers — writer, media.native, coder, researcher, analyst, designer)"
+    ],
+    "pillars": [
+      "Hierarchical Decomposition (4-tier chain of command)",
+      "Continuity Engine (universe canon enforcement, anachronism checking, lore consistency audit)",
+      "Self-Healing Prompt Optimizer (DSPy-inspired)",
+      "Native Engine Routing (minimax-music, hailuo, minimax-image, local ffmpeg)",
+      "Sandbox Verifier (ephemeral isolation)",
+      "Human-in-the-Loop Gate (Deep-Sleep safety halt)",
+      "Token Velocity Governance Inspector (always-on auditing)"
+    ],
+    "invariants": [
+      "I1 Idempotence",
+      "I2 Resource Honesty",
+      "I3 Write Containment",
+      "I4 Read Containment",
+      "I5 Sealed Envelope",
+      "I6 Retry Honesty",
+      "I7 Secret Hygiene",
+      "I8 Metric Truthfulness"
+    ]
+  },
+  "verified": true,
+  "verification_date": "2026-07-03",
+  "verification_status": "Clean package verified: all engine modules present, syntax valid, JSON valid, agents discoverable & lint-clean, native branding validated."
+}

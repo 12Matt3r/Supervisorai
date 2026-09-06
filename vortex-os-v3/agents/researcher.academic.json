@@ -1,0 +1,108 @@
+{
+  "name": "researcher.academic",
+  "version": "2.0.0",
+  "kind": "http",
+  "description": "Searches arXiv, Semantic Scholar, OpenAlex, PubMed. Returns papers with citation graph and a literature-review digest.",
+  "entry": "http://mcp.local:7474/tools/academic_search",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string"
+      },
+      "year_from": {
+        "type": "integer"
+      },
+      "year_to": {
+        "type": "integer"
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "enum": [
+            "arxiv",
+            "semanticscholar",
+            "openalex",
+            "pubmed"
+          ]
+        },
+        "default": [
+          "arxiv",
+          "semanticscholar"
+        ]
+      },
+      "max_papers": {
+        "type": "integer",
+        "default": 25
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "papers",
+      "review"
+    ],
+    "properties": {
+      "papers": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "review": {
+        "type": "string"
+      },
+      "citation_root": {
+        "type": "object"
+      }
+    }
+  },
+  "writes": [
+    "research/{{query_slug}}/papers.json",
+    "research/{{query_slug}}/review.md"
+  ],
+  "reads": [],
+  "resources": {
+    "cpu": "low",
+    "mem": "1Gi",
+    "net": "online"
+  },
+  "retry_policy": {
+    "max_attempts": 3,
+    "backoff": "exponential"
+  },
+  "quality": {
+    "min_score": 0.75,
+    "max_latency_s": 600,
+    "max_cost_usd": 0.1,
+    "must_have": [
+      "papers",
+      "review"
+    ],
+    "must_not": []
+  },
+  "invariants_compliant": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "invariants_provisional": [],
+  "composes_with": [
+    "writer.docs"
+  ],
+  "versioning": {
+    "strategy": "immutable",
+    "eol": null
+  },
+  "deprecated": false,
+  "deprecation_message": null
+}
